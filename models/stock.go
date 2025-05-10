@@ -15,12 +15,11 @@ type Stock struct {
 	ProductUUID     string      `json:"product_uuid"`
 	Product         Product     `gorm:"foreignKey:ProductUUID"`
 	Description     string      `json:"description"`
-	Quantity        float64      `gorm:"not null" json:"quantity"`
-	FournisseurUUID string      `json:"fournisseur_uuid"`
-	Fournisseur     Fournisseur `gorm:"foreignKey:FournisseurUUID"`
+	Quantity        float64     `gorm:"not null" json:"quantity"`
 	PrixAchat       float64     `gorm:"not null" json:"prix_achat"`
 	DateExpiration  time.Time   `gorm:"not null" json:"date_expiration"`
-	Endomage        bool        `json:"endomage"`
+	FournisseurUUID string      `json:"fournisseur_uuid"`
+	Fournisseur     Fournisseur `gorm:"foreignKey:FournisseurUUID"`
 	Signature       string      `json:"signature"`
 	CodeEntreprise  uint64      `json:"code_entreprise"`
 }

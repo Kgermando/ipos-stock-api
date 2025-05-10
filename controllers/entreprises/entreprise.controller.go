@@ -64,11 +64,11 @@ func GetPaginatedEntreprise(c *fiber.Ctx) error {
 			Email:          entreprise.Email,
 			Telephone:      entreprise.Telephone,
 			Manager:        entreprise.Manager,
-			Status:         entreprise.Status,
-			Abonnement:     entreprise.Abonnement,
+			Status:         entreprise.Status, 
 			Signature:      entreprise.Signature,
 			TotalUser:      len(entreprise.Users),
 			TotalPos:       len(entreprise.Pos),
+			TotalAbonnement:       len(entreprise.Abonnement),
 		})
 	}
 
@@ -190,8 +190,7 @@ func UpdateEntreprise(c *fiber.Ctx) error {
 	entreprise.Telephone = updateData.Telephone
 	entreprise.Manager = updateData.Manager
 	entreprise.Status = updateData.Status
-	entreprise.TypeAbonnement = updateData.TypeAbonnement
-	entreprise.Abonnement = updateData.Abonnement
+	entreprise.TypeAbonnement = updateData.TypeAbonnement 
 	entreprise.Signature = updateData.Signature
 
 	db.Save(&entreprise)

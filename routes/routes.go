@@ -108,9 +108,9 @@ func Setup(app *fiber.App) {
 
 	// StockEndommage controller
 	se := api.Group("/stock-endommages")
-	se.Get("/all/paginate/:stock_uuid", stocks.GetPaginatedStockEndommage)
-	se.Get("/all/total/:stock_uuid", stocks.GetTotalStockEndommage)
-	se.Get("/all/:stock_uuid", stocks.GetAllStockEndommages)
+	se.Get("/all/paginate/:product_uuid", stocks.GetPaginatedStockEndommage)
+	se.Get("/all/total/:product_uuid", stocks.GetTotalStockEndommage)
+	se.Get("/all/:product_uuid", stocks.GetAllStockEndommages)
 	se.Get("/get/:uuid", stocks.GetStockEndommage)
 	se.Post("/create", stocks.CreateStockEndommage)
 	se.Put("/update/:uuid", stocks.UpdateStockEndommage)

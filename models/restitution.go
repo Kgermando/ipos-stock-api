@@ -1,8 +1,6 @@
 package models
 
 import (
-	"time"
-
 	"gorm.io/gorm"
 )
 
@@ -16,10 +14,10 @@ type Restitution struct {
 	Product         Product     `gorm:"foreignKey:ProductUUID"`
 	Description     string      `json:"description"`
 	Quantity        uint64      `gorm:"not null" json:"quantity"`
+	PrixAchat       float64     `gorm:"not null" json:"prix_achat"`
+	Motif           string      `json:"motif"`
 	FournisseurUUID string      `json:"fournisseur_uuid"`
 	Fournisseur     Fournisseur `gorm:"foreignKey:FournisseurUUID"`
-	PrixAchat       float64     `gorm:"not null" json:"prix_achat"`
-	DateExpiration  time.Time   `gorm:"not null" json:"date_expiration"`
 	Signature       string      `json:"signature"`
 	CodeEntreprise  uint64      `json:"code_entreprise"`
 }

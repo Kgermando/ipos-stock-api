@@ -16,9 +16,12 @@ type Pos struct {
 	Telephone      string     `json:"telephone"`
 	Manager        string     `gorm:"not null" json:"manager"`
 	Status         bool       `gorm:"not null" json:"status"` // Actif ou Inactif
-	CodeEntreprise uint64     `json:"code_entreprise"`
 	Signature      string     `json:"signature"`
+	CodeEntreprise uint64     `json:"code_entreprise"`
 
-	Stocks    []Stock    `gorm:"foreignKey:PosID" json:"stocks"`
-	Commandes []Commande `gorm:"foreignKey:PosID" json:"commandes"`
+	Users        []User        `gorm:"foreignKey:PosUUID"`
+	Products     []Product     `gorm:"foreignKey:PosUUID"`
+	Commandes    []Commande    `gorm:"foreignKey:PosUUID"`
+	Clients      []Client      `gorm:"foreignKey:PosUUID"`
+	Fournisseurs []Fournisseur `gorm:"foreignKey:PosUUID"`
 }

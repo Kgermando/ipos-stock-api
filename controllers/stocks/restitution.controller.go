@@ -5,13 +5,12 @@ import (
 	"github.com/kgermando/ipos-stock-api/database"
 	"github.com/kgermando/ipos-stock-api/models"
 	"strconv"
-	"time"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 // Paginate
-func GetPaginatedStock(c *fiber.Ctx) error {
+func GetPaginatedRestitution(c *fiber.Ctx) error {
 	db := database.DB
 	productUUID := c.Params("product_uuid")
 
@@ -27,7 +26,7 @@ func GetPaginatedStock(c *fiber.Ctx) error {
 
 	search := c.Query("search", "")
 
-	var dataList []models.Stock
+	var dataList []models.Restitution
 
 	var length int64
 	db.Model(dataList).Where("product_uuid = ?", productUUID).Count(&length)
@@ -60,70 +59,70 @@ func GetPaginatedStock(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"status":     "success",
-		"message":    "All stocks paginated",
+		"message":    "All restitutions paginated",
 		"data":       dataList,
 		"pagination": pagination,
 	})
 }
 
 // Get data
-func GetStockMargeBeneficiaire(c *fiber.Ctx) error {
+func GetRestitutionMargeBeneficiaire(c *fiber.Ctx) error {
 	db := database.DB
 	productUUID := c.Params("product_uuid")
 
-	var data models.Stock
+	var data models.Restitution
 
 	db.Model(data).Where("product_uuid = ?", productUUID).Preload("Product").Last(&data)
 
 	return c.JSON(fiber.Map{
 		"status":  "success",
-		"message": "Total qty stocks",
+		"message": "Total qty restitutions",
 		"data":    data,
 	})
 }
 
 // Get Total data
-func GetTotalStock(c *fiber.Ctx) error {
+func GetTotalRestitution(c *fiber.Ctx) error {
 	db := database.DB
 	productUUID := c.Params("product_uuid")
 
-	var data []models.Stock
+	var data []models.Restitution
 	var totalQty int64
 
 	db.Model(data).Where("product_uuid = ?", productUUID).Select("SUM(quantity)").Scan(&totalQty)
 
 	return c.JSON(fiber.Map{
 		"status":  "success",
-		"message": "Total qty stocks",
+		"message": "Total qty restitutions",
 		"data":    totalQty,
 	})
 }
 
 // Get All data
-func GetAllStocks(c *fiber.Ctx) error {
+func GetAllRestitutions(c *fiber.Ctx) error {
 	db := database.DB
 	productUUID := c.Params("product_uuid")
-	var data []models.Stock
+	var data []models.Restitution
 	db.Where("product_uuid = ?", productUUID).Find(&data)
 	return c.JSON(fiber.Map{
 		"status":  "success",
-		"message": "All stocks",
+		"message": "All restitutions",
 		"data":    data,
 	})
 }
 
 // Get one data
-func GetStock(c *fiber.Ctx) error {
+func GetRestitution(c *fiber.Ctx) error {
 	uuid := c.Params("uuid")
 	db := database.DB
 
-	var stock models.Stock
-	db.Where("uuid = ?", uuid).First(&stock)
-	if stock.UUID == "00000000-0000-0000-0000-000000000000" {
+	var restitution models.Restitution
+	db.Where("uuid = ?", uuid).First(&restitution)
+	if restitution.UUID == "00000000-0000-0000-0000-000000000000" {
 		return c.Status(404).JSON(
 			fiber.Map{
 				"status":  "error",
-				"message": "No stock name found",
+				"message": "No restitution name found",
 				"data":    nil,
 			},
 		)
@@ -132,15 +131,15 @@ func GetStock(c *fiber.Ctx) error {
 	return c.JSON(
 		fiber.Map{
 			"status":  "success",
-			"message": "stock found",
-			"data":    stock,
+			"message": "restitution found",
+			"data":    restitution,
 		},
 	)
 }
 
 // Create data
-func CreateStock(c *fiber.Ctx) error {
-	p := &models.Stock{}
+func CreateRestitution(c *fiber.Ctx) error {
+	p := &models.Restitution{}
 
 	if err := c.BodyParser(&p); err != nil {
 		return err
@@ -151,27 +150,27 @@ func CreateStock(c *fiber.Ctx) error {
 	return c.JSON(
 		fiber.Map{
 			"status":  "success",
-			"message": "stock created success",
+			"message": "restitution created success",
 			"data":    p,
 		},
 	)
 }
 
 // Update data
-func UpdateStock(c *fiber.Ctx) error {
+func UpdateRestitution(c *fiber.Ctx) error {
 	uuid := c.Params("uuid")
 	db := database.DB
 
 	type UpdateData struct {
-		PosUUID         string    `json:"pos_uuid"`
-		ProductUUID     string    `json:"product_uuid"`
-		Description     string    `json:"description"`
-		FournisseurUUID string    `json:"fournisseur_uuid"`
-		Quantity        float64   `json:"quantity"`
-		PrixAchat       float64   `json:"prix_achat"`
-		DateExpiration  time.Time `json:"date_expiration"`
-		Signature       string    `json:"signature"`
-		CodeEntreprise  uint64    `json:"code_entreprise"`
+		PosUUID         string  `json:"pos_uuid"`
+		ProductUUID     string  `json:"product_uuid"`
+		Description     string  `json:"description"`
+		Quantity        uint64  `gorm:"not null" json:"quantity"`
+		PrixAchat       float64 `gorm:"not null" json:"prix_achat"`
+		Motif           string  `json:"motif"`
+		FournisseurUUID string  `json:"fournisseur_uuid"`
+		Signature       string  `json:"signature"`
+		CodeEntreprise  uint64  `json:"code_entreprise"`
 	}
 
 	var updateData UpdateData
@@ -186,55 +185,55 @@ func UpdateStock(c *fiber.Ctx) error {
 		)
 	}
 
-	stock := new(models.Stock)
+	restitution := new(models.Restitution)
 
-	db.Where("uuid = ?", uuid).First(&stock)
-	stock.PosUUID = updateData.PosUUID
-	stock.ProductUUID = updateData.ProductUUID
-	stock.Description = updateData.Description
-	stock.FournisseurUUID = updateData.FournisseurUUID
-	stock.Quantity = updateData.Quantity
-	stock.PrixAchat = updateData.PrixAchat
-	stock.DateExpiration = updateData.DateExpiration
-	stock.Signature = updateData.Signature
-	stock.CodeEntreprise = updateData.CodeEntreprise
+	db.Where("uuid = ?", uuid).First(&restitution)
+	restitution.PosUUID = updateData.PosUUID
+	restitution.ProductUUID = updateData.ProductUUID
+	restitution.Description = updateData.Description
+	restitution.Quantity = updateData.Quantity
+	restitution.PrixAchat = updateData.PrixAchat
+	restitution.Motif = updateData.Motif
+	restitution.FournisseurUUID = updateData.FournisseurUUID
+	restitution.Signature = updateData.Signature
+	restitution.CodeEntreprise = updateData.CodeEntreprise
 
-	db.Save(&stock)
+	db.Save(&restitution)
 
 	return c.JSON(
 		fiber.Map{
 			"status":  "success",
-			"message": "stock updated success",
-			"data":    stock,
+			"message": "restitution updated success",
+			"data":    restitution,
 		},
 	)
 
 }
 
 // Delete data
-func DeleteStock(c *fiber.Ctx) error {
+func DeleteRestitution(c *fiber.Ctx) error {
 	uuid := c.Params("uuid")
 
 	db := database.DB
 
-	var stock models.Stock
-	db.Where("uuid = ?", uuid).First(&stock)
-	if stock.UUID == "00000000-0000-0000-0000-000000000000" {
+	var restitution models.Restitution
+	db.Where("uuid = ?", uuid).First(&restitution)
+	if restitution.UUID == "00000000-0000-0000-0000-000000000000" {
 		return c.Status(404).JSON(
 			fiber.Map{
 				"status":  "error",
-				"message": "No stock name found",
+				"message": "No restitution name found",
 				"data":    nil,
 			},
 		)
 	}
 
-	db.Delete(&stock)
+	db.Delete(&restitution)
 
 	return c.JSON(
 		fiber.Map{
 			"status":  "success",
-			"message": "stock deleted success",
+			"message": "restitution deleted success",
 			"data":    nil,
 		},
 	)

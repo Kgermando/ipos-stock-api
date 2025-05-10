@@ -4,8 +4,7 @@ import (
 	"fmt"
 	"github.com/kgermando/ipos-stock-api/database"
 	"github.com/kgermando/ipos-stock-api/models"
-	"strconv"
-	"time"
+	"strconv" 
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -13,7 +12,7 @@ import (
 // Paginate
 func GetPaginatedStockEndommage(c *fiber.Ctx) error {
 	db := database.DB
-	stockUUID := c.Params("stock_uuid")
+	productUUID := c.Params("product_uuid")
 
 	page, err := strconv.Atoi(c.Query("page", "1"))
 	if err != nil || page <= 0 {
@@ -30,9 +29,8 @@ func GetPaginatedStockEndommage(c *fiber.Ctx) error {
 	var dataList []models.StockEndommage
 
 	var length int64
-	db.Model(dataList).Where("stock_uuid = ?", stockUUID).Count(&length)
-	db.Where("stock_uuid = ?", stockUUID).
-		Joins("JOIN stocks ON stock_endommages.stock_uuid=stocks.uuid").
+	db.Model(dataList).Where("product_uuid = ?", productUUID).Count(&length)
+	db.Where("product_uuid = ?", productUUID).
 		Joins("JOIN products ON stocks.product_uuid=products.uuid").
 		Where("products.name ILIKE ? OR products.reference ILIKE ?", "%"+search+"%", "%"+search+"%").
 		Offset(offset).
@@ -70,12 +68,12 @@ func GetPaginatedStockEndommage(c *fiber.Ctx) error {
 // Get Total data
 func GetTotalStockEndommage(c *fiber.Ctx) error {
 	db := database.DB
-	stockUUID := c.Params("stock_uuid")
+	productUUID := c.Params("product_uuid")
 
 	var data []models.StockEndommage
 	var totalQty float64
 
-	db.Model(data).Where("stock_uuid = ?", stockUUID).Select("SUM(quantity)").Scan(&totalQty)
+	db.Model(data).Where("product_uuid = ?", productUUID).Select("SUM(quantity)").Scan(&totalQty)
 
 	return c.JSON(fiber.Map{
 		"status":  "success",
@@ -87,9 +85,9 @@ func GetTotalStockEndommage(c *fiber.Ctx) error {
 // Get All data
 func GetAllStockEndommages(c *fiber.Ctx) error {
 	db := database.DB
-	stockUUID := c.Params("stock_uuid")
+	productUUID := c.Params("product_uuid")
 	var data []models.StockEndommage
-	db.Where("stock_uuid = ?", stockUUID).Find(&data)
+	db.Where("product_uuid = ?", productUUID).Find(&data)
 	return c.JSON(fiber.Map{
 		"status":  "success",
 		"message": "All stockEndommages",
@@ -148,12 +146,13 @@ func UpdateStockEndommage(c *fiber.Ctx) error {
 	db := database.DB
 
 	type UpdateData struct {
-		PosUUID        string    `json:"pos_uuid"`
-		StockUUID      string    `gorm:"not null" json:"stock_uuid"`
-		Raison         string    `json:"raison"` // Raison de l'endommagement
-		DateEndommage  time.Time `json:"date_endommage"`
-		Quantity       float64   `gorm:"not null" json:"quantity"`
-		CodeEntreprise uint64    `json:"code_entreprise"`
+		PosUUID        string  `json:"pos_uuid"`
+		ProductUUID    string  `json:"product_uuid"`
+		Quantity       float64 `json:"quantity"`
+		PrixAchat      float64 `json:"prix_achat"`
+		Raison         string  `json:"raison"` // Raison de l'endommagement
+		Signature      string  `json:"signature"`
+		CodeEntreprise uint64  `json:"code_entreprise"`
 	}
 
 	var updateData UpdateData
@@ -172,10 +171,11 @@ func UpdateStockEndommage(c *fiber.Ctx) error {
 
 	db.Where("uuid = ?", uuid).First(&stockEndommage)
 	stockEndommage.PosUUID = updateData.PosUUID
-	stockEndommage.StockUUID = updateData.StockUUID
-	stockEndommage.Raison = updateData.Raison
-	stockEndommage.DateEndommage = updateData.DateEndommage
+	stockEndommage.ProductUUID = updateData.ProductUUID
 	stockEndommage.Quantity = updateData.Quantity
+	stockEndommage.PrixAchat = updateData.PrixAchat
+	stockEndommage.Raison = updateData.Raison
+	stockEndommage.Signature = updateData.Signature
 	stockEndommage.CodeEntreprise = updateData.CodeEntreprise
 
 	db.Save(&stockEndommage)
