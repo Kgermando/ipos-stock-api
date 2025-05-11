@@ -1,7 +1,6 @@
 package commandes
 
 import (
-	"fmt"
 	"strconv"
 
 	"github.com/kgermando/ipos-stock-api/database"
@@ -28,32 +27,39 @@ func GetPaginatedCommandeEntreprise(c *fiber.Ctx) error {
 	search := c.Query("search", "")
 
 	var dataList []models.Commande
+	var totalRecords int64
 
-	var length int64
-	db.Model(dataList).Where("code_entreprise = ?", codeEntreprise).Count(&length)
-	db.Where("code_entreprise = ?", codeEntreprise).
+	// Count total records matching the search query
+	db.Model(&models.Commande{}).
+		Where("code_entreprise = ?", codeEntreprise).
+		Where("ncommande::TEXT ILIKE ? OR status ILIKE ?", "%"+search+"%", "%"+search+"%").
+		Count(&totalRecords)
+
+	err = db.Where("code_entreprise = ?", codeEntreprise).
 		Where("ncommande::TEXT ILIKE ? OR status ILIKE ?", "%"+search+"%", "%"+search+"%").
 		Offset(offset).
 		Limit(limit).
 		Order("commandes.updated_at DESC").
 		Preload("CommandeLines").
-		Find(&dataList)
+		Find(&dataList).Error
 
 	if err != nil {
-		fmt.Println("error s'est produite: ", err)
-		return c.Status(500).SendString(err.Error())
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to fetch commande",
+			"error":   err.Error(),
+		})
 	}
 
-	// Calculate total number of pages
-	totalPages := len(dataList) / limit
-	if remainder := len(dataList) % limit; remainder > 0 {
-		totalPages++
-	}
+	// Calculate total pages
+	totalPages := int((totalRecords + int64(limit) - 1) / int64(limit))
+
+	// Prepare pagination metadata
 	pagination := map[string]interface{}{
-		"total_pages": totalPages,
-		"page":        page,
-		"page_size":   limit,
-		"length":      length,
+		"total_records": totalRecords,
+		"total_pages":   totalPages,
+		"current_page":  page,
+		"page_size":     limit,
 	}
 
 	return c.JSON(fiber.Map{

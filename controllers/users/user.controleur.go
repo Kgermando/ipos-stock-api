@@ -2,7 +2,6 @@ package users
 
 import (
 	"strconv"
-	"strings"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/kgermando/ipos-stock-api/database"
@@ -187,16 +186,14 @@ func CreateUser(c *fiber.Ctx) error {
 	}
 
 	user := &models.User{
-		UUID:       p.UUID,
-		Fullname:   p.Fullname,
-		Email:      p.Email,
-		Title:      p.Title,
-		Phone:      p.Phone,
-		Role:       p.Role,
-		Permission: p.Permission,
-		Image:      p.Image,
-		Status:     p.Status,
-		Signature:  p.Signature,
+		Fullname:       p.Fullname,
+		Email:          p.Email,
+		Telephone:      p.Telephone,
+		Role:           p.Role,
+		Permission:     p.Permission,
+		Status:         p.Status,
+		EntrepriseUUID: p.EntrepriseUUID,
+		Signature:      p.Signature,
 	}
 
 	user.SetPassword(p.Password)
@@ -208,15 +205,17 @@ func CreateUser(c *fiber.Ctx) error {
 
 	user.UUID = utils.GenerateUUID()
 
-	if err := database.DB.Create(user).Error; err != nil {
-		c.Status(500)
-		sm := strings.Split(err.Error(), ":")
-		m := strings.TrimSpace(sm[1])
+	database.DB.Create(user)
 
-		return c.JSON(fiber.Map{
-			"message": m,
-		})
-	}
+	// if err := database.DB.Create(user).Error; err != nil {
+	// 	c.Status(500)
+	// 	sm := strings.Split(err.Error(), ":")
+	// 	m := strings.TrimSpace(sm[1])
+
+	// 	return c.JSON(fiber.Map{
+	// 		"message": m,
+	// 	})
+	// }
 
 	return c.JSON(
 		fiber.Map{
@@ -233,19 +232,18 @@ func UpdateUser(c *fiber.Ctx) error {
 	db := database.DB
 
 	type UpdateDataInput struct {
-		UUID            string `json:"uuid"`
-		Fullname        string `json:"fullname"`
-		Email           string `json:"email"`
-		Title           string `json:"title"`
-		Phone           string `json:"phone"`
+		Fullname        string `gorm:"not null" json:"fullname"`
+		Email           string `gorm:"unique; not null" json:"email"`
+		Telephone       string `gorm:"unique; not null" json:"telephone"`
 		Password        string `json:"password" validate:"required"`
-		PasswordConfirm string `json:"password_confirm"`
+		PasswordConfirm string `json:"password_confirm" gorm:"-"`
 		Role            string `json:"role"`
 		Permission      string `json:"permission"`
-		Image           string `json:"image"`
-		Status          bool   `json:"status"` 
-		Signature string `json:"signature"`
+		Status          bool   `json:"status"`
+		PosUUID         string `json:"pos_uuid"`
+		Signature       string `json:"signature"`
 	}
+
 	var updateData UpdateDataInput
 
 	if err := c.BodyParser(&updateData); err != nil {
@@ -263,12 +261,11 @@ func UpdateUser(c *fiber.Ctx) error {
 	db.Where("uuid = ?", uuid).First(&user)
 	user.Fullname = updateData.Fullname
 	user.Email = updateData.Email
-	user.Title = updateData.Title
-	user.Phone = updateData.Phone
+	user.Telephone = updateData.Telephone
 	user.Role = updateData.Role
 	user.Permission = updateData.Permission
-	user.Image = updateData.Image
-	user.Status = updateData.Status 
+	user.Status = updateData.Status
+	user.PosUUID = updateData.PosUUID
 	user.Signature = updateData.Signature
 
 	db.Save(&user)

@@ -5,12 +5,12 @@ import (
 	"os"
 	"strconv"
 	"time"
- 
-	"github.com/kgermando/ipos-stock-api/database" 
-	"github.com/kgermando/ipos-stock-api/models"
-	"github.com/kgermando/ipos-stock-api/utils"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"github.com/kgermando/ipos-stock-api/database"
+	"github.com/kgermando/ipos-stock-api/models"
+	"github.com/kgermando/ipos-stock-api/utils"
 )
 
 var SECRET_KEY string = os.Getenv("SECRET_KEY")
@@ -34,15 +34,14 @@ func Register(c *fiber.Ctx) error {
 	}
 
 	u := &models.User{
-		Fullname:     nu.Fullname,
-		Email:        nu.Email,
-		Title:        nu.Title,
-		Phone:        nu.Phone,
-		Role:         nu.Role,
-		Permission:   nu.Permission,
-		Image:        nu.Image,
-		Status:       nu.Status,
-		Signature:    nu.Signature, 
+		Fullname:       nu.Fullname,
+		Email:          nu.Email,
+		Telephone:      nu.Telephone,
+		Role:           nu.Role,
+		Permission:     nu.Permission,
+		Status:         nu.Status,
+		EntrepriseUUID: nu.EntrepriseUUID,
+		Signature:      nu.Signature,
 	}
 
 	u.SetPassword(nu.Password)
@@ -54,7 +53,7 @@ func Register(c *fiber.Ctx) error {
 
 	u.UUID = uuid.New().String()
 
-	database.DB.Create(u) 
+	database.DB.Create(u)
 
 	return c.JSON(fiber.Map{
 		"message": "user account created",
@@ -128,20 +127,25 @@ func AuthUser(c *fiber.Ctx) error {
 
 	u := models.User{}
 
-	database.DB.Where("users.uuid = ?", UserUUID).First(&u)
+	database.DB.Where("users.uuid = ?", UserUUID).
+		Preload("Entreprise").
+		Preload("Pos").
+		First(&u)
 
 	r := &models.UserResponse{
-		// ID:           u.ID,
-		UUID:         u.UUID,
-		Fullname:     u.Fullname,
-		Email:        u.Email,
-		Title:        u.Title,
-		Phone:        u.Phone,
-		Role:         u.Role,
-		Permission:   u.Permission,
-		Status:       u.Status, 
-		// CreatedAt:    u.CreatedAt,
-		// UpdatedAt:    u.UpdatedAt, 
+		ID:         u.ID,
+		UUID:       u.UUID,
+		Fullname:   u.Fullname,
+		Email:      u.Email,
+		Telephone:  u.Telephone,
+		Role:       u.Role,
+		Permission: u.Permission,
+		Status:     u.Status,
+		Entreprise: u.Entreprise,
+		Pos:        u.Pos,
+		Signature:  u.Signature,
+		CreatedAt:  u.CreatedAt,
+		UpdatedAt:  u.UpdatedAt,
 	}
 	return c.JSON(r)
 }
@@ -167,7 +171,7 @@ func UpdateInfo(c *fiber.Ctx) error {
 	type UpdateDataInput struct {
 		Fullname  string `json:"fullname"`
 		Email     string `json:"email"`
-		Phone     string `json:"phone"`
+		Telephone string `json:"telephone"`
 		Signature string `json:"signature"`
 	}
 	var updateData UpdateDataInput
@@ -193,7 +197,7 @@ func UpdateInfo(c *fiber.Ctx) error {
 	db.First(&user, UserUUID)
 	user.Fullname = updateData.Fullname
 	user.Email = updateData.Email
-	user.Phone = updateData.Phone
+	user.Telephone = updateData.Telephone
 	user.Signature = updateData.Signature
 
 	db.Save(&user)

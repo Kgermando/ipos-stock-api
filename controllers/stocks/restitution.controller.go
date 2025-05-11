@@ -1,7 +1,6 @@
 package stocks
 
 import (
-	"fmt"
 	"github.com/kgermando/ipos-stock-api/database"
 	"github.com/kgermando/ipos-stock-api/models"
 	"strconv"
@@ -28,56 +27,48 @@ func GetPaginatedRestitution(c *fiber.Ctx) error {
 
 	var dataList []models.Restitution
 
-	var length int64
-	db.Model(dataList).Where("product_uuid = ?", productUUID).Count(&length)
-	db.Where("product_uuid = ?", productUUID).
+	var totalRecords int64
+
+	// Count total records matching the search query
+	db.Model(&models.Restitution{}).
+		Where("product_uuid = ?", productUUID).
+		Joins("JOIN products ON stocks.product_uuid=products.uuid").
+		Where("products.name ILIKE ? OR products.reference ILIKE ?", "%"+search+"%", "%"+search+"%").
+		Count(&totalRecords)
+
+	err = db.Where("product_uuid = ?", productUUID).
 		Joins("JOIN products ON stocks.product_uuid=products.uuid").
 		Where("products.name ILIKE ? OR products.reference ILIKE ?", "%"+search+"%", "%"+search+"%").
 		Offset(offset).
 		Limit(limit).
 		Order("stocks.created_at DESC").
 		Preload("Product").
-		Preload("Fournisseur").
-		Find(&dataList)
+		Find(&dataList).Error
 
 	if err != nil {
-		fmt.Println("error s'est produite: ", err)
-		return c.Status(500).SendString(err.Error())
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to fetch restitutions",
+			"error":   err.Error(),
+		})
 	}
 
-	// Calculate total number of pages
-	totalPages := len(dataList) / limit
-	if remainder := len(dataList) % limit; remainder > 0 {
-		totalPages++
-	}
+	// Calculate total pages
+	totalPages := int((totalRecords + int64(limit) - 1) / int64(limit))
+
+	// Prepare pagination metadata
 	pagination := map[string]interface{}{
-		"total_pages": totalPages,
-		"page":        page,
-		"page_size":   limit,
-		"length":      length,
+		"total_records": totalRecords,
+		"total_pages":   totalPages,
+		"current_page":  page,
+		"page_size":     limit,
 	}
-
+	
 	return c.JSON(fiber.Map{
 		"status":     "success",
 		"message":    "All restitutions paginated",
 		"data":       dataList,
 		"pagination": pagination,
-	})
-}
-
-// Get data
-func GetRestitutionMargeBeneficiaire(c *fiber.Ctx) error {
-	db := database.DB
-	productUUID := c.Params("product_uuid")
-
-	var data models.Restitution
-
-	db.Model(data).Where("product_uuid = ?", productUUID).Preload("Product").Last(&data)
-
-	return c.JSON(fiber.Map{
-		"status":  "success",
-		"message": "Total qty restitutions",
-		"data":    data,
 	})
 }
 
@@ -165,8 +156,8 @@ func UpdateRestitution(c *fiber.Ctx) error {
 		PosUUID         string  `json:"pos_uuid"`
 		ProductUUID     string  `json:"product_uuid"`
 		Description     string  `json:"description"`
-		Quantity        uint64  `gorm:"not null" json:"quantity"`
-		PrixAchat       float64 `gorm:"not null" json:"prix_achat"`
+		Quantity        uint64  `json:"quantity"`
+		PrixAchat       float64 `json:"prix_achat"`
 		Motif           string  `json:"motif"`
 		FournisseurUUID string  `json:"fournisseur_uuid"`
 		Signature       string  `json:"signature"`

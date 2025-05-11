@@ -70,11 +70,11 @@ func GetAllCaisses(c *fiber.Ctx) error {
 func GetAllCaisseByPos(c *fiber.Ctx) error {
 	db := database.DB
 	codeEntreprise := c.Params("code_entreprise")
-	posId := c.Params("pos_id")
+	posUUId := c.Params("pos_uuid")
 
 	var data []models.Caisse
 	db.Where("code_entreprise = ?", codeEntreprise).
-		Where("pos_id = ?", posId).
+		Where("pos_uuid = ?", posUUId).
 		Preload("Pos").
 		Order("caisses.updated_at ASC").
 		Find(&data)
@@ -89,31 +89,33 @@ func GetAllCaisseByPos(c *fiber.Ctx) error {
 func GetAllCaisseBySearch(c *fiber.Ctx) error {
 	db := database.DB
 	codeEntreprise := c.Params("code_entreprise")
-	posId := c.Params("pos_id")
+	posUUId := c.Params("pos_uuid")
 
 	search := c.Query("search", "")
 
 	var data []models.Caisse
 	db.Where("code_entreprise = ?", codeEntreprise).
-		Where("pos_id = ?", posId).
+		Where("pos_uuid = ?", posUUId).
 		Where("name ILIKE ?", "%"+search+"%").
+		Preload("Pos").
+		Order("caisses.updated_at ASC").
 		Find(&data)
 	return c.JSON(fiber.Map{
 		"status":  "success",
-		"message": "All caisses",
+		"message": "All caisses by id",
 		"data":    data,
 	})
 }
 
 // Get one data
 func GetCaisse(c *fiber.Ctx) error {
-	id := c.Params("id")
+	uuid := c.Params("uuid")
 	db := database.DB
 
 	var caisse models.Caisse
-	db.
-		Preload("Pos").
-		Find(&caisse, id)
+	db.Where("uuid = ?", uuid).
+		Preload("Pos").First(&caisse)
+
 	if caisse.Name == "" {
 		return c.Status(404).JSON(
 			fiber.Map{
@@ -153,7 +155,7 @@ func CreateCaisse(c *fiber.Ctx) error {
 
 // Update data
 func UpdateCaisse(c *fiber.Ctx) error {
-	id := c.Params("id")
+	uuid := c.Params("uuid")
 	db := database.DB
 
 	type UpdateData struct {
@@ -177,7 +179,7 @@ func UpdateCaisse(c *fiber.Ctx) error {
 
 	caisse := new(models.Caisse)
 
-	db.First(&caisse, id)
+	db.Where("uuid = ?", uuid).First(&caisse)
 	caisse.Name = updateData.Name
 	caisse.Signature = updateData.Signature
 	caisse.PosUUID = updateData.PosUUID
@@ -197,12 +199,12 @@ func UpdateCaisse(c *fiber.Ctx) error {
 
 // Delete data
 func DeleteCaisse(c *fiber.Ctx) error {
-	id := c.Params("id")
+	uuid := c.Params("uuid")
 
 	db := database.DB
 
 	var caisse models.Caisse
-	db.First(&caisse, id)
+	db.Where("uuid = ?", uuid).First(&caisse)
 	if caisse.Name == "" {
 		return c.Status(404).JSON(
 			fiber.Map{

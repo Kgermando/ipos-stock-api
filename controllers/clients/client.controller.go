@@ -3,9 +3,11 @@ package clients
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
+
 	"github.com/kgermando/ipos-stock-api/database"
 	"github.com/kgermando/ipos-stock-api/models"
-	"strconv"
+	"github.com/kgermando/ipos-stock-api/utils"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -15,9 +17,10 @@ func GetPaginatedClient(c *fiber.Ctx) error {
 	db := database.DB
 	codeEntreprise := c.Params("code_entreprise")
 
+	// Parse query parameters for pagination
 	page, err := strconv.Atoi(c.Query("page", "1"))
 	if err != nil || page <= 0 {
-		page = 1 // Default page number
+		page = 1
 	}
 	limit, err := strconv.Atoi(c.Query("limit", "15"))
 	if err != nil || limit <= 0 {
@@ -28,31 +31,38 @@ func GetPaginatedClient(c *fiber.Ctx) error {
 	search := c.Query("search", "")
 
 	var dataList []models.Client
+	var totalRecords int64
 
-	var length int64
-	db.Model(dataList).Where("code_entreprise = ?", codeEntreprise).Count(&length)
-	db.Where("code_entreprise = ?", codeEntreprise).
+	// Count total records matching the search query
+	db.Model(&models.Client{}).
+		Where("code_entreprise = ?", codeEntreprise).
+		Where("fullname ILIKE ?", "%"+search+"%").
+		Count(&totalRecords)
+
+	err = db.Where("code_entreprise = ?", codeEntreprise).
 		Where("fullname ILIKE ?", "%"+search+"%").
 		Offset(offset).
 		Limit(limit).
 		Order("clients.updated_at DESC").
-		Find(&dataList)
+		Find(&dataList).Error
 
 	if err != nil {
-		fmt.Println("error s'est produite: ", err)
-		return c.Status(500).SendString(err.Error())
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to fetch provinces",
+			"error":   err.Error(),
+		})
 	}
 
-	// Calculate total number of pages
-	totalPages := len(dataList) / limit
-	if remainder := len(dataList) % limit; remainder > 0 {
-		totalPages++
-	}
+	// Calculate total pages
+	totalPages := int((totalRecords + int64(limit) - 1) / int64(limit))
+
+	// Prepare pagination metadata
 	pagination := map[string]interface{}{
-		"total_pages": totalPages,
-		"page":        page,
-		"page_size":   limit,
-		"length":      length,
+		"total_records": totalRecords,
+		"total_pages":   totalPages,
+		"current_page":  page,
+		"page_size":     limit,
 	}
 
 	return c.JSON(fiber.Map{
@@ -110,6 +120,8 @@ func CreateClient(c *fiber.Ctx) error {
 		return err
 	}
 
+	p.UUID = utils.GenerateUUID()
+
 	database.DB.Create(p)
 
 	return c.JSON(
@@ -127,11 +139,11 @@ func UpdateClient(c *fiber.Ctx) error {
 	db := database.DB
 
 	type UpdateData struct {
-		Fullname       string `json:"fullname"`
-		Telephone      string `json:"telephone"`
-		Telephone2     string `json:"telephone2"`
-		Email          string `json:"email"`
-		Adress         string `json:"adress"`
+		Fullname   string `json:"fullname"`
+		Telephone  string `json:"telephone"`
+		Telephone2 string `json:"telephone2"`
+		Email      string `json:"email"`
+		Adress     string `json:"adress"`
 		// Birthday       string `json:"birthday"`
 		Organisation   string `json:"organisation"`
 		WebSite        string `json:"website"`
@@ -224,11 +236,11 @@ func UploadCsvDataClient(c *fiber.Ctx) error {
 
 	for _, client := range dataUpload.Data {
 		cl = models.Client{
-			Fullname:       client.Fullname,
-			Telephone:      client.Telephone,
-			Telephone2:     client.Telephone2,
-			Email:          client.Email,
-			Adress:         client.Adress,
+			Fullname:   client.Fullname,
+			Telephone:  client.Telephone,
+			Telephone2: client.Telephone2,
+			Email:      client.Email,
+			Adress:     client.Adress,
 			// Birthday:       client.Birthday,
 			Organisation:   client.Organisation,
 			WebSite:        client.WebSite,

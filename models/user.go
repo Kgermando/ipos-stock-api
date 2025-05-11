@@ -12,33 +12,36 @@ type User struct {
 
 	UUID string `gorm:"type:text;not null;unique" json:"uuid"` // Explicitly set type:text
 
-	Fullname        string `gorm:"not null" json:"fullname"`
-	Email           string `json:"email" gorm:"unique;not null"`
-	Title           string `json:"title"`
-	Phone           string `json:"phone" gorm:"not null;unique"` // Added unique constraint
-	Password        string `json:"password" validate:"required"`
-	PasswordConfirm string `json:"password_confirm" gorm:"-"`
-
-	Role       string `json:"role"`
-	Permission string `json:"permission"`
-	Image      string `json:"image"`
-	Status     bool   `json:"status"`
-	Signature  string `json:"signature"`
+	Fullname        string     `gorm:"not null" json:"fullname"`
+	Email           string     `gorm:"unique; not null" json:"email"`
+	Telephone       string     `gorm:"unique; not null" json:"telephone"`
+	Password        string     `json:"password" validate:"required"`
+	PasswordConfirm string     `json:"password_confirm" gorm:"-"`
+	Role            string     `json:"role"`
+	Permission      string     `json:"permission"`
+	Status          bool       `json:"status"`
+	EntrepriseUUID  string     `json:"entreprise_uuid"`
+	Entreprise      Entreprise `gorm:"foreignKey:EntrepriseUUID"`
+	PosUUID         string     `json:"pos_uuid"`
+	Pos             Pos        `gorm:"foreignKey:PosUUID"`
+	Signature       string     `json:"signature"`
 }
 
 type UserResponse struct {
 	ID         uint      `json:"id"`
 	UUID       string    `json:"uuid"`
-	Fullname   string    `json:"fullname"`
-	Email      string    `json:"email"`
-	Phone      string    `json:"phone"`
-	Title      string    `json:"title"`
-	Role       string    `json:"role"`
-	Permission string    `json:"permission"`
-	Status     bool      `json:"status"`
-	Signature  string    `json:"signature"`
-	CreatedAt  time.Time `json:"created_at"`
-	UpdatedAt  time.Time `json:"updated_at"`
+	Fullname   string     `json:"fullname"`
+	Email      string     `json:"email"`
+	Telephone  string     `json:"telephone"`
+	Role       string     `json:"role"`
+	Permission string     `json:"permission"`
+	Status     bool       `json:"status"`
+	Currency   string     `json:"currency"`
+	Entreprise Entreprise `json:"entreprise"`
+	Pos        Pos        `json:"pos"`
+	Signature  string     `json:"signature"`
+	CreatedAt  time.Time  `json:"created_at"`
+	UpdatedAt  time.Time  `json:"updated_at"`
 }
 
 type Login struct {

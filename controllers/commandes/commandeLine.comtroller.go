@@ -1,7 +1,6 @@
 package commandes
 
 import (
-	"fmt"
 	"github.com/kgermando/ipos-stock-api/database"
 	"github.com/kgermando/ipos-stock-api/models"
 	"strconv"
@@ -28,11 +27,16 @@ func GetPaginatedCommandeLineByID(c *fiber.Ctx) error {
 
 	var dataList []models.CommandeLine
 
-	var length int64
-	var data []models.CommandeLine
-	db.Model(data).Where("commande_uuid = ?", commandeUUID).Count(&length)
+	var totalRecords int64
 
-	db.Joins("JOIN commandes ON commande_lines.commande_uuid=commandes.uuid").
+	// Count total records matching the search query
+	db.Model(&models.CommandeLine{}).
+		Joins("JOIN products ON commande_lines.product_uuid=products.uuid").
+		Where("commande_lines.commande_uuid = ?", commandeUUID).
+		Where("products.name ILIKE ? OR products.reference ILIKE ?", "%"+search+"%", "%"+search+"%").
+		Count(&totalRecords)
+
+	err = db.
 		Joins("JOIN products ON commande_lines.product_uuid=products.uuid").
 		Where("commande_lines.commande_uuid = ?", commandeUUID).
 		Where("products.name ILIKE ? OR products.reference ILIKE ?", "%"+search+"%", "%"+search+"%").
@@ -50,24 +54,24 @@ func GetPaginatedCommandeLineByID(c *fiber.Ctx) error {
 		Offset(offset).
 		Limit(limit).
 		Order("commande_lines.updated_at DESC").
-		Find(&dataList)
-
+		Find(&dataList).Error
 	if err != nil {
-		fmt.Println("error s'est produite: ", err)
-		return c.Status(500).SendString(err.Error())
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to fetch commande_lines",
+			"error":   err.Error(),
+		})
 	}
 
-	// Calculate total number of pages
-	totalPages := len(dataList) / limit
-	if remainder := len(dataList) % limit; remainder > 0 {
-		totalPages++
-	}
+	// Calculate total pages
+	totalPages := int((totalRecords + int64(limit) - 1) / int64(limit))
 
+	// Prepare pagination metadata
 	pagination := map[string]interface{}{
-		"total_pages": totalPages,
-		"page":        page,
-		"page_size":   limit,
-		"length":      length,
+		"total_records": totalRecords,
+		"total_pages":   totalPages,
+		"current_page":  page,
+		"page_size":     limit,
 	}
 
 	return c.JSON(fiber.Map{
@@ -78,17 +82,16 @@ func GetPaginatedCommandeLineByID(c *fiber.Ctx) error {
 	})
 }
 
-// Get All data
-func GetAllCommandeLineById(c *fiber.Ctx) error {
+// Get All data by UUID
+func GetAllCommandeLineByUUId(c *fiber.Ctx) error {
 	db := database.DB
 	commandeUUID := c.Params("commande_uuid")
 
 	var dataList []models.CommandeLine
-	db.Where("commande_lines.commande_uuid = ?", commandeUUID).
-		Order("commande_lines.updated_at DESC").
+	db.Where("commande_uuid = ?", commandeUUID).
+		Order("updated_at DESC").
 		Preload("Commande").
 		Preload("Product").
-		Preload("Plat").
 		Find(&dataList)
 	return c.JSON(fiber.Map{
 		"status":  "success",

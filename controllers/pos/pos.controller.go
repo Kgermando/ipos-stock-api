@@ -1,10 +1,11 @@
 package pos
 
 import (
-	"fmt"
+	"strconv"
+
 	"github.com/kgermando/ipos-stock-api/database"
 	"github.com/kgermando/ipos-stock-api/models"
-	"strconv"
+	"github.com/kgermando/ipos-stock-api/utils"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -27,34 +28,38 @@ func GetPaginatedPos(c *fiber.Ctx) error {
 
 	var dataList []models.Pos
 
-	var length int64
-	db.Model(dataList).Count(&length)
-	db.Where("name ILIKE ? OR manager ILIKE ?", "%"+search+"%", "%"+search+"%").
+	var totalRecords int64
+
+	// Count total records matching the search query
+	db.Model(&models.Pos{}).
+		Where("name ILIKE ? OR manager ILIKE ?", "%"+search+"%", "%"+search+"%").
+		Count(&totalRecords)
+
+	err = db.Where("name ILIKE ? OR manager ILIKE ?", "%"+search+"%", "%"+search+"%").
 		Offset(offset).
 		Limit(limit).
 		Order("pos.updated_at DESC").
 		Preload("Entreprise").
-		Preload("Stocks").
-		Preload("BonCommades").
-		Preload("Commandes").
-		Find(&dataList)
+		Find(&dataList).Error
 
-	if err != nil {
-		fmt.Println("error s'est produite: ", err)
-		return c.Status(500).SendString(err.Error())
-	}
-
-	// Calculate total number of pages
-	totalPages := len(dataList) / limit
-	if remainder := len(dataList) % limit; remainder > 0 {
-		totalPages++
-	}
-	pagination := map[string]interface{}{
-		"total_pages": totalPages,
-		"page":        page,
-		"page_size":   limit,
-		"length":      length,
-	}
+		if err != nil {
+			return c.Status(500).JSON(fiber.Map{
+				"status":  "error",
+				"message": "Failed to fetch pos",
+				"error":   err.Error(),
+			})
+		}
+	
+		// Calculate total pages
+		totalPages := int((totalRecords + int64(limit) - 1) / int64(limit))
+	
+		// Prepare pagination metadata
+		pagination := map[string]interface{}{
+			"total_records": totalRecords,
+			"total_pages":   totalPages,
+			"current_page":  page,
+			"page_size":     limit,
+		}
 
 	return c.JSON(fiber.Map{
 		"status":     "success",
@@ -64,10 +69,10 @@ func GetPaginatedPos(c *fiber.Ctx) error {
 	})
 }
 
-// Query all data ID
-func GetPaginatedPosByID(c *fiber.Ctx) error {
+// Query all data UUID
+func GetPaginatedPosByUUID(c *fiber.Ctx) error {
 	db := database.DB
-	EntrepriseID := c.Params("entreprise_id")
+	EntrepriseUUID := c.Params("entreprise_uuid")
 
 	page, err := strconv.Atoi(c.Query("page", "1"))
 	if err != nil || page <= 0 {
@@ -83,41 +88,44 @@ func GetPaginatedPosByID(c *fiber.Ctx) error {
 
 	var dataList []models.Pos
 
-	var length int64
-	var data []models.Pos
-	db.Model(data).Where("entreprise_id = ?", EntrepriseID).Count(&length)
-	db.Where("entreprise_id = ?", EntrepriseID).
+	var totalRecords int64
+
+	// Count total records matching the search query
+	db.Model(&models.CommandeLine{}).
+		Where("entreprise_uuid = ?", EntrepriseUUID).
+		Where("name ILIKE ? OR manager ILIKE ?", "%"+search+"%", "%"+search+"%").
+		Count(&totalRecords)
+
+	err = db.Where("entreprise_uuid = ?", EntrepriseUUID).
 		Where("name ILIKE ? OR manager ILIKE ?", "%"+search+"%", "%"+search+"%").
 		Offset(offset).
 		Limit(limit).
 		Order("pos.updated_at DESC").
 		Preload("Entreprise").
-		Preload("Stocks").
-		Preload("BonCommades").
-		Preload("Commandes").
-		Find(&dataList)
+		Find(&dataList).Error
 
 	if err != nil {
-		fmt.Println("error s'est produite: ", err)
-		return c.Status(500).SendString(err.Error())
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to fetch pos",
+			"error":   err.Error(),
+		})
 	}
 
-	// Calculate total number of pages
-	totalPages := len(dataList) / limit
-	if remainder := len(dataList) % limit; remainder > 0 {
-		totalPages++
-	}
+	// Calculate total pages
+	totalPages := int((totalRecords + int64(limit) - 1) / int64(limit))
 
+	// Prepare pagination metadata
 	pagination := map[string]interface{}{
-		"total_pages": totalPages,
-		"page":        page,
-		"page_size":   limit,
-		"length":      length,
+		"total_records": totalRecords,
+		"total_pages":   totalPages,
+		"current_page":  page,
+		"page_size":     limit,
 	}
 
 	return c.JSON(fiber.Map{
 		"status":     "success",
-		"message":    "All bonCommandeLine by BonCommande",
+		"message":    "All pos by uuid",
 		"data":       dataList,
 		"pagination": pagination,
 	})
@@ -126,10 +134,10 @@ func GetPaginatedPosByID(c *fiber.Ctx) error {
 // Get All data
 func GetAllPoss(c *fiber.Ctx) error {
 	db := database.DB
+
 	var data []models.Pos
-	db.Preload("Stocks").
-		// Preload("BonCommades").
-		Preload("Commandes").Find(&data)
+	db.Find(&data)
+
 	return c.JSON(fiber.Map{
 		"status":  "success",
 		"message": "All poss",
@@ -137,13 +145,13 @@ func GetAllPoss(c *fiber.Ctx) error {
 	})
 }
 
-// Get All data
-func GetAllPosById(c *fiber.Ctx) error {
+// Get All data by UUID
+func GetAllPosByUUId(c *fiber.Ctx) error {
 	db := database.DB
-	EntrepriseID := c.Params("entreprise_id")
+	EntrepriseUUID := c.Params("entreprise_uuid")
 
 	var data []models.Pos
-	db.Where("entreprise_id = ?", EntrepriseID).Find(&data)
+	db.Where("entreprise_uuid = ?", EntrepriseUUID).Find(&data)
 	return c.JSON(fiber.Map{
 		"status":  "success",
 		"message": "All poss",
@@ -153,12 +161,20 @@ func GetAllPosById(c *fiber.Ctx) error {
 
 // Get one data
 func GetPos(c *fiber.Ctx) error {
-	id := c.Params("id")
+	uuid := c.Params("uuid")
+
 	db := database.DB
 	var pos models.Pos
-	db.Preload("Stocks").
-		// Preload("BonCommades").
-		Preload("Commandes").Find(&pos, id)
+
+	db.Where("uuid = ?", uuid).
+		Preload("Entreprise").
+		Preload("Users").
+		Preload("Products").
+		Preload("Commandes").
+		Preload("Clients").
+		Preload("Fournisseurs").
+		First(&pos)
+
 	if pos.Name == "" {
 		return c.Status(404).JSON(
 			fiber.Map{
@@ -185,6 +201,7 @@ func CreatePos(c *fiber.Ctx) error {
 		return err
 	}
 
+	p.UUID = utils.GenerateUUID()
 	database.DB.Create(p)
 
 	return c.JSON(
@@ -198,7 +215,7 @@ func CreatePos(c *fiber.Ctx) error {
 
 // Update data
 func UpdatePos(c *fiber.Ctx) error {
-	id := c.Params("id")
+	uuid := c.Params("uuid")
 	db := database.DB
 
 	type UpdateData struct {
@@ -226,7 +243,7 @@ func UpdatePos(c *fiber.Ctx) error {
 
 	pos := new(models.Pos)
 
-	db.First(&pos, id)
+	db.Where("uuid = ?", uuid).First(&pos)
 	pos.EntrepriseUUID = updateData.EntrepriseUUID
 	pos.Name = updateData.Name
 	pos.Email = updateData.Email
@@ -249,12 +266,12 @@ func UpdatePos(c *fiber.Ctx) error {
 
 // Delete data
 func DeletePos(c *fiber.Ctx) error {
-	id := c.Params("id")
+	uuid := c.Params("uuid")
 
 	db := database.DB
 
 	var pos models.Pos
-	db.First(&pos, id)
+	db.Where("uuid = ?", uuid).First(&pos)
 	if pos.Name == "" {
 		return c.Status(404).JSON(
 			fiber.Map{

@@ -1,7 +1,6 @@
 package caisses
 
-import (
-	"fmt"
+import ( 
 	"github.com/kgermando/ipos-stock-api/database"
 	"github.com/kgermando/ipos-stock-api/models"
 	"strconv"
@@ -15,12 +14,10 @@ func GetPaginatedCaisseItems(c *fiber.Ctx) error {
 	codeEntreprise := c.Params("code_entreprise")
 	caisseUUID := c.Params("caisse_uuid")
 
-	start_date := c.Query("start_date")
-	end_date := c.Query("end_date")
-
+	// Parse query parameters for pagination
 	page, err := strconv.Atoi(c.Query("page", "1"))
 	if err != nil || page <= 0 {
-		page = 1 // Default page number
+		page = 1
 	}
 	limit, err := strconv.Atoi(c.Query("limit", "15"))
 	if err != nil || limit <= 0 {
@@ -28,15 +25,21 @@ func GetPaginatedCaisseItems(c *fiber.Ctx) error {
 	}
 	offset := (page - 1) * limit
 
+	start_date := c.Query("start_date")
+	end_date := c.Query("end_date")
 	search := c.Query("search", "")
 
 	var dataList []models.CaisseItem
+	var totalRecords int64
 
-	var length int64
-	db.Model(dataList).Where("code_entreprise = ?", codeEntreprise).
+	// Count total records matching the search query
+	db.Model(&models.CaisseItem{}).
+		Where("code_entreprise = ?", codeEntreprise).
 		Where("caisse_uuid = ?", caisseUUID).
-		Where("caisse_items.created_at BETWEEN ? AND ?", start_date, end_date).Count(&length)
-	db.Where("code_entreprise = ?", codeEntreprise).
+		Where("caisse_items.created_at BETWEEN ? AND ?", start_date, end_date).
+		Count(&totalRecords)
+
+	err = db.Where("code_entreprise = ?", codeEntreprise).
 		Where("caisse_uuid = ?", caisseUUID).
 		Where("caisse_items.created_at BETWEEN ? AND ?", start_date, end_date).
 		Where("libelle ILIKE ? OR type_transaction ILIKE ? OR reference ILIKE ?", "%"+search+"%", "%"+search+"%", "%"+search+"%").
@@ -44,28 +47,30 @@ func GetPaginatedCaisseItems(c *fiber.Ctx) error {
 		Limit(limit).
 		Order("caisse_items.updated_at DESC").
 		Preload("Caisse").
-		Find(&dataList)
+		Find(&dataList).Error
 
 	if err != nil {
-		fmt.Println("error s'est produite: ", err)
-		return c.Status(500).SendString(err.Error())
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to fetch provinces",
+			"error":   err.Error(),
+		})
 	}
 
-	// Calculate total number of pages
-	totalPages := len(dataList) / limit
-	if remainder := len(dataList) % limit; remainder > 0 {
-		totalPages++
-	}
+	// Calculate total pages
+	totalPages := int((totalRecords + int64(limit) - 1) / int64(limit))
+
+	// Prepare pagination metadata
 	pagination := map[string]interface{}{
-		"total_pages": totalPages,
-		"page":        page,
-		"page_size":   limit,
-		"length":      length,
+		"total_records": totalRecords,
+		"total_pages":   totalPages,
+		"current_page":  page,
+		"page_size":     limit,
 	}
 
 	return c.JSON(fiber.Map{
 		"status":     "success",
-		"message":    "All caisses",
+		"message":    "All caisse items",
 		"data":       dataList,
 		"pagination": pagination,
 	})
@@ -89,7 +94,7 @@ func GetAllCaisseItems(c *fiber.Ctx) error {
 	})
 }
 
-// Get All data by id
+// Get All data by uuid
 func GetAllCaisseItemBySearch(c *fiber.Ctx) error {
 	db := database.DB
 	codeEntreprise := c.Params("code_entreprise")
@@ -112,11 +117,11 @@ func GetAllCaisseItemBySearch(c *fiber.Ctx) error {
 
 // Get one data
 func GetCaisseItem(c *fiber.Ctx) error {
-	UUID := c.Params("uuid") 
+	UUID := c.Params("uuid")
 	db := database.DB
 
 	var caisseItem models.CaisseItem
-	db.Where("uuid = ?", UUID).Preload("Caisse").First(&caisseItem) 
+	db.Where("uuid = ?", UUID).Preload("Caisse").First(&caisseItem)
 	if caisseItem.TypeTransaction == "" {
 		return c.Status(404).JSON(
 			fiber.Map{
@@ -156,16 +161,16 @@ func CreateCaisseItem(c *fiber.Ctx) error {
 
 // Update data
 func UpdateCaisseItem(c *fiber.Ctx) error {
-	UUID := c.Params("uuid") 
+	UUID := c.Params("uuid")
 	db := database.DB
 
 	type UpdateData struct {
-		CaisseUUID        string    `json:"caisse_uuid"`
+		CaisseUUID      string  `json:"caisse_uuid"`
 		TypeTransaction string  `json:"type_transaction"` // Entreé ou Sortie
 		Montant         float64 `json:"montant"`          // Montant de la transaction
 		Libelle         string  `json:"libelle"`          // Description de la transaction
 		Reference       string  `json:"reference"`        // Nombre aleatoire
-		Signature       string  `json:"signature"`        // Signature de la transaction 
+		Signature       string  `json:"signature"`        // Signature de la transaction
 		CodeEntreprise  uint64  `json:"code_entreprise"`
 	}
 
@@ -189,7 +194,7 @@ func UpdateCaisseItem(c *fiber.Ctx) error {
 	caisseItem.Montant = updateData.Montant
 	caisseItem.Libelle = updateData.Libelle
 	caisseItem.Reference = updateData.Reference
-	caisseItem.Signature = updateData.Signature 
+	caisseItem.Signature = updateData.Signature
 	caisseItem.CodeEntreprise = updateData.CodeEntreprise
 
 	db.Save(&caisseItem)
@@ -205,8 +210,8 @@ func UpdateCaisseItem(c *fiber.Ctx) error {
 }
 
 // Delete data
-func DeleteCaisseItem(c *fiber.Ctx) error { 
-	UUID := c.Params("uuid") 
+func DeleteCaisseItem(c *fiber.Ctx) error {
+	UUID := c.Params("uuid")
 
 	db := database.DB
 

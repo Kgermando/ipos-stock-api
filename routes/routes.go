@@ -12,7 +12,6 @@ import (
 	"github.com/kgermando/ipos-stock-api/controllers/products"
 	"github.com/kgermando/ipos-stock-api/controllers/stocks"
 	"github.com/kgermando/ipos-stock-api/controllers/users"
-	"github.com/kgermando/ipos-stock-api/middlewares"
 
 	"github.com/gofiber/fiber/v2/middleware/logger"
 )
@@ -28,7 +27,7 @@ func Setup(app *fiber.App) {
 	a.Post("/forgot-password", auth.Forgot)
 	a.Post("/reset/:token", auth.ResetPassword)
 
-	app.Use(middlewares.IsAuthenticated)
+	// app.Use(middlewares.IsAuthenticated)
 
 	a.Get("/user", auth.AuthUser)
 	a.Put("/profil/info", auth.UpdateInfo)
@@ -58,8 +57,8 @@ func Setup(app *fiber.App) {
 	p := api.Group("/pos")
 	p.Get("/all", pos.GetAllPoss)
 	p.Get("/all/paginate", pos.GetPaginatedPos)
-	p.Get("/all/paginate/:entreprise_uuid", pos.GetPaginatedPosByID)
-	p.Get("/all/:entreprise_uuid", pos.GetAllPosById)
+	p.Get("/all/paginate/:entreprise_uuid", pos.GetPaginatedPosByUUID)
+	p.Get("/all/:entreprise_uuid", pos.GetAllPosByUUId)
 	p.Get("/get/:uuid", pos.GetPos)
 	p.Post("/create", pos.CreatePos)
 	p.Put("/update/:uuid", pos.UpdatePos)
@@ -88,11 +87,14 @@ func Setup(app *fiber.App) {
 	pr := api.Group("/products")
 	pr.Get("/:code_entreprise/all/paginate", products.GetPaginatedProductEntreprise)
 	pr.Get("/:code_entreprise/:pos_uuid/all", products.GetAllProducts)
-	pr.Get("/:code_entreprise/:pos_uuid/all/paginate", products.GetPaginatedProduct)
+	pr.Get("/:code_entreprise/:pos_uuid/all/paginate", products.GetPaginatedProductByPosUUID)
 	pr.Get("/:code_entreprise/:pos_uuid/all/search", products.GetAllProductBySearch)
 	pr.Get("/get/:uuid", products.GetProduct)
 	pr.Post("/create", products.CreateProduct)
 	pr.Put("/update/:uuid", products.UpdateProduct)
+	pr.Put("/update/stock/:uuid", products.UpdateProductStockDispo)
+	pr.Put("/update/stock-endommage/:uuid", products.UpdateProductStockEndommage)
+	pr.Put("/update/restitution/:uuid", products.UpdateProductRestitution)
 	pr.Delete("/delete/:uuid", products.DeleteProduct)
 
 	// Stock controller
@@ -115,6 +117,16 @@ func Setup(app *fiber.App) {
 	se.Post("/create", stocks.CreateStockEndommage)
 	se.Put("/update/:uuid", stocks.UpdateStockEndommage)
 	se.Delete("/delete/:uuid", stocks.DeleteStockEndommage)
+
+	// Restitution controller
+	re := api.Group("/restitutions")
+	re.Get("/all/paginate/:product_uuid", stocks.GetPaginatedRestitution)
+	re.Get("/all/total/:product_uuid", stocks.GetTotalRestitution)
+	re.Get("/all/:product_uuid", stocks.GetAllRestitutions)
+	re.Get("/get/:uuid", stocks.GetRestitution)
+	re.Post("/create", stocks.CreateRestitution)
+	re.Put("/update/:uuid", stocks.UpdateRestitution)
+	re.Delete("/delete/:uuid", stocks.DeleteRestitution)
 
 	// Client controller
 	cl := api.Group("/clients")
@@ -147,15 +159,12 @@ func Setup(app *fiber.App) {
 	// Commande line controller
 	cmdl := api.Group("/commandes-lines")
 	cmdl.Get("/all", commandes.GetAllCommandeLines)
-	cmdl.Get("/all/:commande_uuid", commandes.GetAllCommandeLineById)
 	cmdl.Get("/all/paginate/:commande_uuid", commandes.GetPaginatedCommandeLineByID)
 	cmdl.Get("/all/total/:product_uuid", commandes.GetTotalCommandeLine)
+	cmdl.Get("/all/:commande_uuid", commandes.GetAllCommandeLineByUUId)
 	cmdl.Get("/get/:uuid", commandes.GetCommandeLine)
 	cmdl.Post("/create", commandes.CreateCommandeLine)
 	cmdl.Put("/update/:uuid", commandes.UpdateCommandeLine)
 	cmdl.Delete("/delete/:uuid", commandes.DeleteCommandeLine)
-
-
-
 
 }

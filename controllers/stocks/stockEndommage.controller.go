@@ -1,10 +1,9 @@
 package stocks
 
 import (
-	"fmt"
 	"github.com/kgermando/ipos-stock-api/database"
 	"github.com/kgermando/ipos-stock-api/models"
-	"strconv" 
+	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -28,9 +27,16 @@ func GetPaginatedStockEndommage(c *fiber.Ctx) error {
 
 	var dataList []models.StockEndommage
 
-	var length int64
-	db.Model(dataList).Where("product_uuid = ?", productUUID).Count(&length)
-	db.Where("product_uuid = ?", productUUID).
+	var totalRecords int64
+
+	// Count total records matching the search query
+	db.Model(&models.StockEndommage{}).
+		Where("product_uuid = ?", productUUID).
+		Joins("JOIN products ON stocks.product_uuid=products.uuid").
+		Where("products.name ILIKE ? OR products.reference ILIKE ?", "%"+search+"%", "%"+search+"%").
+		Count(&totalRecords)
+
+	err = db.Where("product_uuid = ?", productUUID).
 		Joins("JOIN products ON stocks.product_uuid=products.uuid").
 		Where("products.name ILIKE ? OR products.reference ILIKE ?", "%"+search+"%", "%"+search+"%").
 		Offset(offset).
@@ -38,28 +44,30 @@ func GetPaginatedStockEndommage(c *fiber.Ctx) error {
 		Order("stocks.created_at DESC").
 		Preload("Product").
 		Preload("Fournisseur").
-		Find(&dataList)
+		Find(&dataList).Error
 
 	if err != nil {
-		fmt.Println("error s'est produite: ", err)
-		return c.Status(500).SendString(err.Error())
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to fetch restitutions",
+			"error":   err.Error(),
+		})
 	}
 
-	// Calculate total number of pages
-	totalPages := len(dataList) / limit
-	if remainder := len(dataList) % limit; remainder > 0 {
-		totalPages++
-	}
+	// Calculate total pages
+	totalPages := int((totalRecords + int64(limit) - 1) / int64(limit))
+
+	// Prepare pagination metadata
 	pagination := map[string]interface{}{
-		"total_pages": totalPages,
-		"page":        page,
-		"page_size":   limit,
-		"length":      length,
+		"total_records": totalRecords,
+		"total_pages":   totalPages,
+		"current_page":  page,
+		"page_size":     limit,
 	}
 
 	return c.JSON(fiber.Map{
 		"status":     "success",
-		"message":    "All stocks paginated",
+		"message":    "All stockEndommages paginated",
 		"data":       dataList,
 		"pagination": pagination,
 	})
@@ -77,7 +85,7 @@ func GetTotalStockEndommage(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"status":  "success",
-		"message": "Total qty stocks",
+		"message": "Total qty stockEndommages",
 		"data":    totalQty,
 	})
 }

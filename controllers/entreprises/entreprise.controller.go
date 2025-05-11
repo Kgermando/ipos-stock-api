@@ -1,11 +1,12 @@
 package entreprises
 
 import (
-	"fmt"
-	"github.com/kgermando/ipos-stock-api/database"
-	"github.com/kgermando/ipos-stock-api/models"
 	"strconv"
 	"time"
+
+	"github.com/kgermando/ipos-stock-api/database"
+	"github.com/kgermando/ipos-stock-api/models"
+	"github.com/kgermando/ipos-stock-api/utils"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -28,55 +29,61 @@ func GetPaginatedEntreprise(c *fiber.Ctx) error {
 
 	var dataList []models.Entreprise
 
-	var length int64
-	db.Model(dataList).Count(&length)
-	db.Where("name ILIKE ? OR code ILIKE ?", "%"+search+"%", "%"+search+"%").
+	var totalRecords int64
+
+	// Count total records matching the search query
+	db.Model(&models.Entreprise{}).
+		Where("name ILIKE ? OR code ILIKE ?", "%"+search+"%", "%"+search+"%").
+		Count(&totalRecords)
+
+	err = db.Where("name ILIKE ? OR code ILIKE ?", "%"+search+"%", "%"+search+"%").
 		Offset(offset).
 		Limit(limit).
 		Order("entreprises.updated_at DESC").
 		Preload("Users").
 		Preload("Pos").
-		Find(&dataList)
+		Find(&dataList).Error
 
 	if err != nil {
-		fmt.Println("error s'est produite: ", err)
-		return c.Status(500).SendString(err.Error())
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to fetch entrepises",
+			"error":   err.Error(),
+		})
 	}
 
-	// Calculate total number of pages
-	totalPages := len(dataList) / limit
-	if remainder := len(dataList) % limit; remainder > 0 {
-		totalPages++
+	// Calculate total pages
+	totalPages := int((totalRecords + int64(limit) - 1) / int64(limit))
+
+	// Prepare pagination metadata
+	pagination := map[string]interface{}{
+		"total_records": totalRecords,
+		"total_pages":   totalPages,
+		"current_page":  page,
+		"page_size":     limit,
 	}
 
 	var entrepriseInfos []models.EntrepriseInfos
 	for _, entreprise := range dataList {
 		entrepriseInfos = append(entrepriseInfos, models.EntrepriseInfos{
-			ID:             entreprise.ID,
-			UUID:           entreprise.UUID,
-			TypeEntreprise: entreprise.TypeEntreprise,
-			Name:           entreprise.Name,
-			Code:           entreprise.Code,
-			Rccm:           entreprise.Rccm,
-			IdNat:          entreprise.IdNat,
-			NImpot:         entreprise.NImpot,
-			Adresse:        entreprise.Adresse,
-			Email:          entreprise.Email,
-			Telephone:      entreprise.Telephone,
-			Manager:        entreprise.Manager,
-			Status:         entreprise.Status, 
-			Signature:      entreprise.Signature,
-			TotalUser:      len(entreprise.Users),
-			TotalPos:       len(entreprise.Pos),
-			TotalAbonnement:       len(entreprise.Abonnement),
+			ID:              entreprise.ID,
+			UUID:            entreprise.UUID,
+			TypeEntreprise:  entreprise.TypeEntreprise,
+			Name:            entreprise.Name,
+			Code:            entreprise.Code,
+			Rccm:            entreprise.Rccm,
+			IdNat:           entreprise.IdNat,
+			NImpot:          entreprise.NImpot,
+			Adresse:         entreprise.Adresse,
+			Email:           entreprise.Email,
+			Telephone:       entreprise.Telephone,
+			Manager:         entreprise.Manager,
+			Status:          entreprise.Status,
+			Signature:       entreprise.Signature,
+			TotalUser:       len(entreprise.Users),
+			TotalPos:        len(entreprise.Pos),
+			TotalAbonnement: len(entreprise.Abonnement),
 		})
-	}
-
-	pagination := map[string]interface{}{
-		"total_pages": totalPages,
-		"page":        page,
-		"page_size":   limit,
-		"length":      length,
 	}
 
 	return c.JSON(fiber.Map{
@@ -101,10 +108,17 @@ func GetAllEntreprises(c *fiber.Ctx) error {
 
 // Get one data
 func GetEntreprise(c *fiber.Ctx) error {
-	id := c.Params("id")
+	uuid := c.Params("uuid")
 	db := database.DB
+	
 	var entreprise models.Entreprise
-	db.Preload("Users").Preload("Pos").Find(&entreprise, id)
+
+	db.Where("uuid = ?", uuid).
+		Preload("Users").
+		Preload("Pos").
+		Preload("Abonnement").
+		First(&entreprise)
+
 	if entreprise.Name == "" {
 		return c.Status(404).JSON(
 			fiber.Map{
@@ -117,7 +131,7 @@ func GetEntreprise(c *fiber.Ctx) error {
 	return c.JSON(
 		fiber.Map{
 			"status":  "success",
-			"message": "entreprise  found",
+			"message": "entreprise found",
 			"data":    entreprise,
 		},
 	)
@@ -130,6 +144,8 @@ func CreateEntreprise(c *fiber.Ctx) error {
 	if err := c.BodyParser(&p); err != nil {
 		return err
 	}
+
+	p.UUID = utils.GenerateUUID()
 
 	database.DB.Create(p)
 
@@ -144,7 +160,7 @@ func CreateEntreprise(c *fiber.Ctx) error {
 
 // Update data
 func UpdateEntreprise(c *fiber.Ctx) error {
-	id := c.Params("id")
+	uuid := c.Params("uuid")
 	db := database.DB
 
 	type UpdateData struct {
@@ -178,7 +194,7 @@ func UpdateEntreprise(c *fiber.Ctx) error {
 
 	entreprise := new(models.Entreprise)
 
-	db.First(&entreprise, id)
+	db.Where("uuid = ?", uuid).First(&entreprise)
 	entreprise.TypeEntreprise = updateData.TypeEntreprise
 	entreprise.Name = updateData.Name
 	entreprise.Code = updateData.Code
@@ -190,7 +206,7 @@ func UpdateEntreprise(c *fiber.Ctx) error {
 	entreprise.Telephone = updateData.Telephone
 	entreprise.Manager = updateData.Manager
 	entreprise.Status = updateData.Status
-	entreprise.TypeAbonnement = updateData.TypeAbonnement 
+	entreprise.TypeAbonnement = updateData.TypeAbonnement
 	entreprise.Signature = updateData.Signature
 
 	db.Save(&entreprise)
@@ -207,12 +223,12 @@ func UpdateEntreprise(c *fiber.Ctx) error {
 
 // Delete data
 func DeleteEntreprise(c *fiber.Ctx) error {
-	id := c.Params("id")
+	uuid := c.Params("uuid")
 
 	db := database.DB
 
 	var entreprise models.Entreprise
-	db.First(&entreprise, id)
+	db.Where("uuid = ?", uuid).First(&entreprise)
 	if entreprise.Name == "" {
 		return c.Status(404).JSON(
 			fiber.Map{

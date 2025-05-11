@@ -3,9 +3,11 @@ package fournisseurs
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
+
 	"github.com/kgermando/ipos-stock-api/database"
 	"github.com/kgermando/ipos-stock-api/models"
-	"strconv"
+	"github.com/kgermando/ipos-stock-api/utils"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -29,30 +31,38 @@ func GetPaginatedFournisseur(c *fiber.Ctx) error {
 
 	var dataList []models.Fournisseur
 
-	var length int64
-	db.Model(dataList).Where("code_entreprise = ?", codeEntreprise).Count(&length)
-	db.Where("code_entreprise = ?", codeEntreprise).
-		Where("fullname ILIKE ?", "%"+search+"%").
+	var totalRecords int64
+
+	// Count total records matching the search query
+	db.Model(&models.Fournisseur{}).
+		Where("code_entreprise = ?", codeEntreprise).
+		Where("entreprise_name ILIKE ?", "%"+search+"%").
+		Count(&totalRecords)
+
+	err = db.Where("code_entreprise = ?", codeEntreprise).
+		Where("entreprise_name ILIKE ?", "%"+search+"%").
 		Offset(offset).
 		Limit(limit).
 		Order("fournisseurs.updated_at DESC").
-		Find(&dataList)
+		Find(&dataList).Error
 
 	if err != nil {
-		fmt.Println("error s'est produite: ", err)
-		return c.Status(500).SendString(err.Error())
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to fetch fournisseurs",
+			"error":   err.Error(),
+		})
 	}
 
-	// Calculate total number of pages
-	totalPages := len(dataList) / limit
-	if remainder := len(dataList) % limit; remainder > 0 {
-		totalPages++
-	}
+	// Calculate total pages
+	totalPages := int((totalRecords + int64(limit) - 1) / int64(limit))
+
+	// Prepare pagination metadata
 	pagination := map[string]interface{}{
-		"total_pages": totalPages,
-		"page":        page,
-		"page_size":   limit,
-		"length":      length,
+		"total_records": totalRecords,
+		"total_pages":   totalPages,
+		"current_page":  page,
+		"page_size":     limit,
 	}
 
 	return c.JSON(fiber.Map{
@@ -72,7 +82,7 @@ func GetAllFournisseurs(c *fiber.Ctx) error {
 	db.Where("code_entreprise = ?", codeEntreprise).Find(&data)
 	return c.JSON(fiber.Map{
 		"status":  "success",
-		"message": "All clients",
+		"message": "All fournisseurs",
 		"data":    data,
 	})
 }
@@ -84,7 +94,7 @@ func GetFournisseur(c *fiber.Ctx) error {
 
 	var fournisseur models.Fournisseur
 	db.Where("uuid = ?", uuid).First(&fournisseur)
-	if fournisseur.Fullname == "" {
+	if fournisseur.EntrepriseName == "" {
 		return c.Status(404).JSON(
 			fiber.Map{
 				"status":  "error",
@@ -110,6 +120,8 @@ func CreateFournisseur(c *fiber.Ctx) error {
 		return err
 	}
 
+	p.UUID = utils.GenerateUUID()
+
 	database.DB.Create(p)
 
 	return c.JSON(
@@ -127,14 +139,16 @@ func UpdateFournisseur(c *fiber.Ctx) error {
 	db := database.DB
 
 	type UpdateData struct {
-		Fullname   string `gorm:"not null" json:"fullname"`
-		Telephone  string `gorm:"not null" json:"telephone"`
-		Telephone2 string `json:"telephone2"`
-		Email      string `json:"email"`
-		Adress     string `json:"adress"`
-		Entreprise string `json:"entreprise"`
-		WebSite    string `json:"website"`
-
+		EntrepriseName string `json:"entreprise_name"`
+		Rccm           string `json:"rccm"`
+		IdNat          string `json:"idnat"`
+		NImpot         string `json:"nimpot"`
+		Adresse        string `json:"adresse"`
+		Email          string `json:"email"`     // Email officiel
+		Telephone      string `json:"telephone"` // Telephone officiel
+		Manager        string `json:"manager"`
+		WebSite        string `json:"website"`
+		TypeFourniture string `json:"type_fourniture"`
 		Signature      string `json:"signature"`
 		CodeEntreprise uint64 `json:"code_entreprise"`
 	}
@@ -154,12 +168,14 @@ func UpdateFournisseur(c *fiber.Ctx) error {
 	fournisseur := new(models.Fournisseur)
 
 	db.Where("uuid = ?", uuid).First(&fournisseur)
-	fournisseur.Fullname = updateData.Fullname
-	fournisseur.Telephone = updateData.Telephone
-	fournisseur.Telephone2 = updateData.Telephone2
+	fournisseur.EntrepriseName = updateData.EntrepriseName
+	fournisseur.Rccm = updateData.Rccm
+	fournisseur.IdNat = updateData.IdNat
+	fournisseur.NImpot = updateData.NImpot
+	fournisseur.Adresse = updateData.Adresse
 	fournisseur.Email = updateData.Email
-	fournisseur.Adress = updateData.Adress
-	fournisseur.Entreprise = updateData.Entreprise
+	fournisseur.Telephone = updateData.Telephone
+	fournisseur.Manager = updateData.Manager
 	fournisseur.WebSite = updateData.WebSite
 	fournisseur.Signature = updateData.Signature
 	fournisseur.CodeEntreprise = updateData.CodeEntreprise
@@ -184,7 +200,7 @@ func DeleteFournisseur(c *fiber.Ctx) error {
 
 	var fournisseur models.Fournisseur
 	db.Where("uuid = ?", uuid).First(&fournisseur)
-	if fournisseur.Fullname == "" {
+	if fournisseur.EntrepriseName == "" {
 		return c.Status(404).JSON(
 			fiber.Map{
 				"status":  "error",
@@ -221,19 +237,21 @@ func UploadCsvDataFournisseur(c *fiber.Ctx) error {
 
 	var cl models.Fournisseur
 
-	for _, Fournisseur := range dataUpload.Data {
+	for _, fournisseur := range dataUpload.Data {
 		cl = models.Fournisseur{
-			Fullname:       Fournisseur.Fullname,
-			Telephone:      Fournisseur.Telephone,
-			Telephone2:     Fournisseur.Telephone2,
-			Email:          Fournisseur.Email,
-			Adress:         Fournisseur.Adress,
-			Entreprise:     Fournisseur.Entreprise,
-			WebSite:        Fournisseur.WebSite,
+			EntrepriseName: fournisseur.EntrepriseName,
+			Rccm:           fournisseur.Rccm,
+			IdNat:          fournisseur.IdNat,
+			NImpot:         fournisseur.NImpot,
+			Adresse:        fournisseur.Adresse,
+			Email:          fournisseur.Email,
+			Telephone:      fournisseur.Telephone,
+			Manager:        fournisseur.Manager,
+			WebSite:        fournisseur.WebSite,
 			Signature:      dataUpload.Signature,
 			CodeEntreprise: dataUpload.CodeEntreprise,
 		}
-		if Fournisseur.Fullname == "" {
+		if fournisseur.EntrepriseName == "" {
 			continue
 		}
 		db.Create(&cl)
