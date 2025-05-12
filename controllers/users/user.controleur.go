@@ -205,6 +205,8 @@ func CreateUser(c *fiber.Ctx) error {
 
 	user.UUID = utils.GenerateUUID()
 
+	user.Sync = true
+
 	database.DB.Create(user)
 
 	// if err := database.DB.Create(user).Error; err != nil {

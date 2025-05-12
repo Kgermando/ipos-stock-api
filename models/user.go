@@ -19,12 +19,13 @@ type User struct {
 	PasswordConfirm string     `json:"password_confirm" gorm:"-"`
 	Role            string     `json:"role"`
 	Permission      string     `json:"permission"`
-	Status          bool       `json:"status"`
+	Status          bool       `gorm:"default:false" json:"status"`
 	EntrepriseUUID  string     `json:"entreprise_uuid"`
-	Entreprise      Entreprise `gorm:"foreignKey:EntrepriseUUID"`
+	Entreprise      Entreprise `gorm:"foreignKey:EntrepriseUUID" json:"entreprise"`
 	PosUUID         string     `json:"pos_uuid"`
-	Pos             Pos        `gorm:"foreignKey:PosUUID"`
+	Pos             Pos        `gorm:"foreignKey:PosUUID" json:"pos"`
 	Signature       string     `json:"signature"`
+	Sync            bool       `gorm:"default:false" json:"sync"`
 }
 
 type UserResponse struct {
@@ -42,6 +43,7 @@ type UserResponse struct {
 	Signature  string     `json:"signature"`
 	CreatedAt  time.Time  `json:"created_at"`
 	UpdatedAt  time.Time  `json:"updated_at"`
+	Sync       bool       `json:"sync"`
 }
 
 type Login struct {

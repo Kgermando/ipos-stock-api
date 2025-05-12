@@ -14,5 +14,6 @@ type CaisseItem struct {
 	Libelle         string  `json:"libelle"`                          // Description de la transaction
 	Reference       string  `json:"reference"`                        // Nombre aleatoire
 	Signature       string  `json:"signature"`                        // Signature de la transaction
-	CodeEntreprise  uint64  `json:"code_entreprise"`                  // ID de l'entreprise
+	CodeEntreprise  uint64  `json:"code_entreprise"` 
+	Sync            bool       `gorm:"default:false" json:"sync"`                 // ID de l'entreprise
 }

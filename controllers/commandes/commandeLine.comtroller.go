@@ -164,6 +164,7 @@ func CreateCommandeLine(c *fiber.Ctx) error {
 		return err
 	}
 
+	p.Sync = true
 	database.DB.Create(p)
 
 	return c.JSON(

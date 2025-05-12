@@ -22,6 +22,7 @@ type Client struct {
 	CodeEntreprise uint64 `json:"code_entreprise"`
 	PosUUID        string `json:"pos_uuid"`
 	Pos            Pos    `gorm:"foreignKey:PosUUID"`
+	Sync            bool       `gorm:"default:false" json:"sync"`
 	
 	Commandes []Commande  `gorm:"foreignKey:ClientUUID"`
 }

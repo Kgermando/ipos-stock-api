@@ -23,6 +23,7 @@ type Product struct {
 
 	CodeEntreprise uint64 `json:"code_entreprise"`
 	Signature      string `json:"signature"`
+	Sync            bool       `gorm:"default:false" json:"sync"`
 
 	Stocks          []Stock          `gorm:"foreignKey:ProductUUID"`
 	StockEndommages []StockEndommage `gorm:"foreignKey:ProductUUID"`

@@ -14,4 +14,5 @@ type Abonnement struct {
 	Montant        float64    `gorm:"not null" json:"montant"`
 	MoyenPayment   string     `gorm:"not null" json:"moyen_payment"`
 	Signature      string     `json:"signature"`
+	Sync            bool       `gorm:"default:false" json:"sync"`
 }

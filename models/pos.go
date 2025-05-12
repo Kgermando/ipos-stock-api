@@ -18,6 +18,7 @@ type Pos struct {
 	Status         bool       `gorm:"not null" json:"status"` // Actif ou Inactif
 	Signature      string     `json:"signature"`
 	CodeEntreprise uint64     `json:"code_entreprise"`
+	Sync            bool       `gorm:"default:false" json:"sync"`
 
 	Users        []User        `gorm:"foreignKey:PosUUID"`
 	Products     []Product     `gorm:"foreignKey:PosUUID"`

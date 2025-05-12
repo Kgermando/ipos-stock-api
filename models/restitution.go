@@ -20,4 +20,5 @@ type Restitution struct {
 	Fournisseur     Fournisseur `gorm:"foreignKey:FournisseurUUID"`
 	Signature       string      `json:"signature"`
 	CodeEntreprise  uint64      `json:"code_entreprise"`
+	Sync            bool       `gorm:"default:false" json:"sync"`
 }

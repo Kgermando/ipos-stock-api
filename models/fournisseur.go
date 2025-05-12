@@ -22,6 +22,7 @@ type Fournisseur struct {
 
 	PosUUID string `json:"pos_uuid"`
 	Pos     Pos    `gorm:"foreignKey:PosUUID"`
+	Sync            bool       `gorm:"default:false" json:"sync"`
 
 	Stocks []Stock `gorm:"foreignKey:FournisseurUUID"`
 }

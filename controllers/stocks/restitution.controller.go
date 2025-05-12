@@ -63,7 +63,7 @@ func GetPaginatedRestitution(c *fiber.Ctx) error {
 		"current_page":  page,
 		"page_size":     limit,
 	}
-	
+
 	return c.JSON(fiber.Map{
 		"status":     "success",
 		"message":    "All restitutions paginated",
@@ -135,7 +135,7 @@ func CreateRestitution(c *fiber.Ctx) error {
 	if err := c.BodyParser(&p); err != nil {
 		return err
 	}
-
+	p.Sync = true
 	database.DB.Create(p)
 
 	return c.JSON(

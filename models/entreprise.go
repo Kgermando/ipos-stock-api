@@ -23,6 +23,7 @@ type Entreprise struct {
 	Status         bool   `gorm:"not null" json:"status"`
 	TypeAbonnement string `json:"type_abonnement"`
 	Signature      string `json:"signature"`
+	Sync           bool   `gorm:"default:false" json:"sync"`
 
 	Users      []User       `gorm:"foreignKey:EntrepriseUUID"`
 	Pos        []Pos        `gorm:"foreignKey:EntrepriseUUID"`
@@ -30,22 +31,22 @@ type Entreprise struct {
 }
 
 type EntrepriseInfos struct {
-	ID              uint      `json:"id"`
-	UUID            string    `json:"uuid"`            // Explicitly set type:text
-	TypeEntreprise  string    `json:"type_entreprise"` // PME, GE, Particulier
-	Name            string    `json:"name"`
-	Code            uint64    `json:"code"` // Code entreprise
-	Rccm            string    `json:"rccm"`
-	IdNat           string    `json:"idnat"`
-	NImpot          string    `json:"nimpot"`
-	Adresse         string    `json:"adresse"`
-	Email           string    `json:"email"`     // Email officiel
-	Telephone       string    `json:"telephone"` // Telephone officiel
-	Manager         string    `json:"manager"`
-	Status          bool      `json:"status"`
-	TypeAbonnement  string    `json:"type_abonnement"`
-	Signature       string    `json:"signature"`
-	TotalUser       int       `json:"total_user"`
-	TotalPos        int       `json:"total_pos"`
-	TotalAbonnement int       `json:"total_abonnement"`
+	ID              uint   `json:"id"`
+	UUID            string `json:"uuid"`            // Explicitly set type:text
+	TypeEntreprise  string `json:"type_entreprise"` // PME, GE, Particulier
+	Name            string `json:"name"`
+	Code            uint64 `json:"code"` // Code entreprise
+	Rccm            string `json:"rccm"`
+	IdNat           string `json:"idnat"`
+	NImpot          string `json:"nimpot"`
+	Adresse         string `json:"adresse"`
+	Email           string `json:"email"`     // Email officiel
+	Telephone       string `json:"telephone"` // Telephone officiel
+	Manager         string `json:"manager"`
+	Status          bool   `json:"status"`
+	TypeAbonnement  string `json:"type_abonnement"`
+	Signature       string `json:"signature"`
+	TotalUser       int    `json:"total_user"`
+	TotalPos        int    `json:"total_pos"`
+	TotalAbonnement int    `json:"total_abonnement"`
 }

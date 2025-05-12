@@ -1,6 +1,6 @@
 package caisses
 
-import ( 
+import (
 	"github.com/kgermando/ipos-stock-api/database"
 	"github.com/kgermando/ipos-stock-api/models"
 	"strconv"
@@ -147,7 +147,7 @@ func CreateCaisseItem(c *fiber.Ctx) error {
 	if err := c.BodyParser(&p); err != nil {
 		return err
 	}
-
+	p.Sync = true
 	database.DB.Create(p)
 
 	return c.JSON(

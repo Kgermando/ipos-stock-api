@@ -17,4 +17,5 @@ type StockEndommage struct {
 	Raison         string  `json:"raison"` // Raison de l'endommagement
 	Signature      string  `json:"signature"`
 	CodeEntreprise uint64  `json:"code_entreprise"`
+	Sync            bool       `gorm:"default:false" json:"sync"`
 }

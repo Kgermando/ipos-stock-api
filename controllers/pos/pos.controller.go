@@ -202,6 +202,7 @@ func CreatePos(c *fiber.Ctx) error {
 	}
 
 	p.UUID = utils.GenerateUUID()
+	p.Sync = true
 	database.DB.Create(p)
 
 	return c.JSON(
