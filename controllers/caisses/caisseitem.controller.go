@@ -1,17 +1,38 @@
 package caisses
 
 import (
+	"strconv"
+
 	"github.com/kgermando/ipos-stock-api/database"
 	"github.com/kgermando/ipos-stock-api/models"
-	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 )
 
+// Synchronisation Send data to Local
+func GetDataSynchronisationCaisseItem(c *fiber.Ctx) error {
+	db := database.DB
+	entrepriseUUID := c.Params("entreprise_uuid")
+	posUUID := c.Params("pos_uuid")
+
+	sync_created := c.Query("sync_created", "2023-01-01") 
+
+	var data []models.CaisseItem
+	db.Where("entreprise_uuid = ?", entrepriseUUID).
+		Where("pos_uuid = ?", posUUID).
+		Where("created_at > ?", sync_created).
+		Find(&data) 
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": "All CaisseItems",
+		"data":    data,
+	})
+}
+
 // Paginate
 func GetPaginatedCaisseItems(c *fiber.Ctx) error {
 	db := database.DB
-	codeEntreprise := c.Params("code_entreprise")
+	entrepriseUUID := c.Params("entreprise_uuid")
 	caisseUUID := c.Params("caisse_uuid")
 
 	// Parse query parameters for pagination
@@ -34,12 +55,12 @@ func GetPaginatedCaisseItems(c *fiber.Ctx) error {
 
 	// Count total records matching the search query
 	db.Model(&models.CaisseItem{}).
-		Where("code_entreprise = ?", codeEntreprise).
+		Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("caisse_uuid = ?", caisseUUID).
 		Where("caisse_items.created_at BETWEEN ? AND ?", start_date, end_date).
 		Count(&totalRecords)
 
-	err = db.Where("code_entreprise = ?", codeEntreprise).
+	err = db.Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("caisse_uuid = ?", caisseUUID).
 		Where("caisse_items.created_at BETWEEN ? AND ?", start_date, end_date).
 		Where("libelle ILIKE ? OR type_transaction ILIKE ? OR reference ILIKE ?", "%"+search+"%", "%"+search+"%", "%"+search+"%").
@@ -79,11 +100,11 @@ func GetPaginatedCaisseItems(c *fiber.Ctx) error {
 // Get All data
 func GetAllCaisseItems(c *fiber.Ctx) error {
 	db := database.DB
-	codeEntreprise := c.Params("code_entreprise")
+	entrepriseUUID := c.Params("entreprise_uuid")
 	caisseUUID := c.Params("caisse_uuid")
 
 	var data []models.CaisseItem
-	db.Where("code_entreprise = ?", codeEntreprise).
+	db.Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("caisse_uuid = ?", caisseUUID).
 		Preload("Caisse").
 		Find(&data)
@@ -97,13 +118,13 @@ func GetAllCaisseItems(c *fiber.Ctx) error {
 // Get All data by uuid
 func GetAllCaisseItemBySearch(c *fiber.Ctx) error {
 	db := database.DB
-	codeEntreprise := c.Params("code_entreprise")
+	entrepriseUUID := c.Params("entreprise_uuid")
 	caisseUUID := c.Params("caisse_uuid")
 
 	search := c.Query("search", "")
 
 	var data []models.CaisseItem
-	db.Where("code_entreprise = ?", codeEntreprise).
+	db.Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("caisse_uuid = ?", caisseUUID).
 		Where("libelle ILIKE ? OR type_transaction ILIKE ? OR reference ILIKE ?", "%"+search+"%", "%"+search+"%", "%"+search+"%").
 		Preload("Caisse").
@@ -171,7 +192,7 @@ func UpdateCaisseItem(c *fiber.Ctx) error {
 		Libelle         string  `json:"libelle"`          // Description de la transaction
 		Reference       string  `json:"reference"`        // Nombre aleatoire
 		Signature       string  `json:"signature"`        // Signature de la transaction
-		CodeEntreprise  uint64  `json:"code_entreprise"`
+		EntrepriseUUID  string  `json:"entreprise_uuid"`
 	}
 
 	var updateData UpdateData
@@ -195,7 +216,7 @@ func UpdateCaisseItem(c *fiber.Ctx) error {
 	caisseItem.Libelle = updateData.Libelle
 	caisseItem.Reference = updateData.Reference
 	caisseItem.Signature = updateData.Signature
-	caisseItem.CodeEntreprise = updateData.CodeEntreprise
+	caisseItem.EntrepriseUUID = updateData.EntrepriseUUID
 
 	db.Save(&caisseItem)
 

@@ -1,13 +1,34 @@
 package stocks
 
 import (
-	"github.com/kgermando/ipos-stock-api/database"
-	"github.com/kgermando/ipos-stock-api/models"
 	"strconv"
 	"time"
 
+	"github.com/kgermando/ipos-stock-api/database"
+	"github.com/kgermando/ipos-stock-api/models"
+
 	"github.com/gofiber/fiber/v2"
 )
+
+// Synchronisation Send data to Local
+func GetDataSynchronisationStock(c *fiber.Ctx) error {
+	db := database.DB
+	entrepriseUUID := c.Params("entreprise_uuid")
+	posUUID := c.Params("pos_uuid")
+
+	sync_created := c.Query("sync_created", "2023-01-01") 
+
+	var data []models.Stock
+	db.Where("entreprise_uuid = ?", entrepriseUUID).
+		Where("pos_uuid = ?", posUUID).
+		Where("created_at > ?", sync_created).
+		Find(&data) 
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": "All Stocks",
+		"data":    data,
+	})
+}
 
 // Paginate
 func GetPaginatedStock(c *fiber.Ctx) error {
@@ -180,7 +201,7 @@ func UpdateStock(c *fiber.Ctx) error {
 		PrixAchat       float64   `json:"prix_achat"`
 		DateExpiration  time.Time `json:"date_expiration"`
 		Signature       string    `json:"signature"`
-		CodeEntreprise  uint64    `json:"code_entreprise"`
+		EntrepriseUUID  string    `json:"entreprise_uuid"`
 	}
 
 	var updateData UpdateData
@@ -206,7 +227,7 @@ func UpdateStock(c *fiber.Ctx) error {
 	stock.PrixAchat = updateData.PrixAchat
 	stock.DateExpiration = updateData.DateExpiration
 	stock.Signature = updateData.Signature
-	stock.CodeEntreprise = updateData.CodeEntreprise
+	stock.EntrepriseUUID = updateData.EntrepriseUUID
 
 	db.Save(&stock)
 

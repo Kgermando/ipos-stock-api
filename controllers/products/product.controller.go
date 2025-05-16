@@ -1,17 +1,38 @@
 package products
 
 import (
+	"strconv"
+
 	"github.com/kgermando/ipos-stock-api/database"
 	"github.com/kgermando/ipos-stock-api/models"
-	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 )
 
+// Synchronisation Send data to Local
+func GetDataSynchronisation(c *fiber.Ctx) error {
+	db := database.DB
+	entrepriseUUID := c.Params("entreprise_uuid")
+	posUUID := c.Params("pos_uuid")
+
+	sync_created := c.Query("sync_created", "2023-01-01") 
+
+	var data []models.Product
+	db.Where("entreprise_uuid = ?", entrepriseUUID).
+		Where("pos_uuid = ?", posUUID).
+		Where("created_at > ?", sync_created).
+		Find(&data) 
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": "All products",
+		"data":    data,
+	})
+}
+
 // Paginate
 func GetPaginatedProductEntreprise(c *fiber.Ctx) error {
 	db := database.DB
-	codeEntreprise := c.Params("code_entreprise")
+	entrepriseUUID := c.Params("entreprise_uuid")
 
 	page, err := strconv.Atoi(c.Query("page", "1"))
 	if err != nil || page <= 0 {
@@ -31,11 +52,11 @@ func GetPaginatedProductEntreprise(c *fiber.Ctx) error {
 
 	// Count total records matching the search query
 	db.Model(&models.Product{}).
-		Where("code_entreprise = ?", codeEntreprise).
+		Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("name ILIKE ? OR reference ILIKE ?", "%"+search+"%", "%"+search+"%").
 		Count(&totalRecords)
 
-	err = db.Where("code_entreprise = ?", codeEntreprise).
+	err = db.Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("name ILIKE ? OR reference ILIKE ?", "%"+search+"%", "%"+search+"%").
 		Offset(offset).
 		Limit(limit).
@@ -73,7 +94,7 @@ func GetPaginatedProductEntreprise(c *fiber.Ctx) error {
 // Paginate by posUUID
 func GetPaginatedProductByPosUUID(c *fiber.Ctx) error {
 	db := database.DB
-	codeEntreprise := c.Params("code_entreprise")
+	entrepriseUUID := c.Params("entreprise_uuid")
 	posUUID := c.Params("pos_uuid")
 
 	page, err := strconv.Atoi(c.Query("page", "1"))
@@ -94,12 +115,12 @@ func GetPaginatedProductByPosUUID(c *fiber.Ctx) error {
 
 	// Count total records matching the search query
 	db.Model(&models.Product{}).
-		Where("code_entreprise = ?", codeEntreprise).
+		Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("pos_uuid = ?", posUUID).
 		Where("name ILIKE ? OR reference ILIKE ?", "%"+search+"%", "%"+search+"%").
 		Count(&totalRecords)
 
-	err = db.Where("code_entreprise = ?", codeEntreprise).
+	err = db.Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("pos_uuid = ?", posUUID).
 		Where("name ILIKE ? OR reference ILIKE ?", "%"+search+"%", "%"+search+"%").
 		Offset(offset).
@@ -138,11 +159,11 @@ func GetPaginatedProductByPosUUID(c *fiber.Ctx) error {
 // Get All data
 func GetAllProducts(c *fiber.Ctx) error {
 	db := database.DB
-	codeEntreprise := c.Params("code_entreprise")
+	entrepriseUUID := c.Params("entreprise_uuid")
 	posUUID := c.Params("pos_uuid")
 
 	var data []models.Product
-	db.Where("code_entreprise = ?", codeEntreprise).
+	db.Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("pos_uuid = ?", posUUID).
 		Find(&data)
 	return c.JSON(fiber.Map{
@@ -155,13 +176,13 @@ func GetAllProducts(c *fiber.Ctx) error {
 // Get All data by id
 func GetAllProductBySearch(c *fiber.Ctx) error {
 	db := database.DB
-	codeEntreprise := c.Params("code_entreprise")
+	entrepriseUUID := c.Params("entreprise_uuid")
 	posUUID := c.Params("pos_uuid")
 
 	search := c.Query("search", "")
 
 	var data []models.Product
-	db.Where("code_entreprise = ?", codeEntreprise).
+	db.Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("pos_uuid = ?", posUUID).
 		Where("name ILIKE ? OR reference ILIKE ?", "%"+search+"%", "%"+search+"%").
 		Find(&data)
@@ -234,7 +255,7 @@ func UpdateProduct(c *fiber.Ctx) error {
 		Stock          float64 `json:"stock"` // stock disponible
 		Signature      string  `json:"signature"`
 		PosUUID        string  `json:"pos_uuid"`
-		CodeEntreprise uint64  `json:"code_entreprise"`
+		EntrepriseUUID string  `json:"entreprise_uuid"`
 	}
 
 	var updateData UpdateData
@@ -262,7 +283,7 @@ func UpdateProduct(c *fiber.Ctx) error {
 	// product.Image = updateData.Image
 	product.Signature = updateData.Signature
 	product.PosUUID = updateData.PosUUID
-	product.CodeEntreprise = updateData.CodeEntreprise
+	product.EntrepriseUUID = updateData.EntrepriseUUID
 
 	db.Save(&product)
 

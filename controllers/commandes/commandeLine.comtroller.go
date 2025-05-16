@@ -1,12 +1,33 @@
 package commandes
 
 import (
+	"strconv"
+
 	"github.com/kgermando/ipos-stock-api/database"
 	"github.com/kgermando/ipos-stock-api/models"
-	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 )
+
+// Synchronisation Send data to Local
+func GetDataSynchronisationCommandeLine(c *fiber.Ctx) error {
+	db := database.DB
+	entrepriseUUID := c.Params("entreprise_uuid")
+	posUUID := c.Params("pos_uuid")
+
+	sync_created := c.Query("sync_created", "2023-01-01") 
+
+	var data []models.CommandeLine
+	db.Where("entreprise_uuid = ?", entrepriseUUID).
+		Where("pos_uuid = ?", posUUID).
+		Where("created_at > ?", sync_created).
+		Find(&data) 
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": "All CommandeLines",
+		"data":    data,
+	})
+}
 
 // Query all data ID
 func GetPaginatedCommandeLineByID(c *fiber.Ctx) error {
@@ -185,7 +206,7 @@ func UpdateCommandeLine(c *fiber.Ctx) error {
 		CommandeUUID   string `json:"commande_uuid"`
 		ProductUUID    string `json:"product_uuid"`
 		Quantity       uint64 `json:"quantity"`
-		CodeEntreprise uint64 `json:"code_entreprise"`
+		EntrepriseUUID string `json:"entreprise_uuid"`
 	}
 
 	var updateData UpdateData
@@ -206,7 +227,7 @@ func UpdateCommandeLine(c *fiber.Ctx) error {
 	commandeLine.CommandeUUID = updateData.CommandeUUID
 	commandeLine.ProductUUID = updateData.ProductUUID
 	commandeLine.Quantity = updateData.Quantity
-	commandeLine.CodeEntreprise = updateData.CodeEntreprise
+	commandeLine.EntrepriseUUID = updateData.EntrepriseUUID
 
 	db.Save(&commandeLine)
 

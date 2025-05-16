@@ -7,13 +7,33 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+// Synchronisation Send data to Local
+func GetDataSynchronisation(c *fiber.Ctx) error {
+	db := database.DB
+	entrepriseUUID := c.Params("entreprise_uuid")
+	posUUID := c.Params("pos_uuid")
+
+	sync_created := c.Query("sync_created", "2023-01-01") 
+
+	var data []models.CaisseItem
+	db.Where("entreprise_uuid = ?", entrepriseUUID).
+		Where("pos_uuid = ?", posUUID).
+		Where("created_at > ?", sync_created).
+		Find(&data) 
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": "All CaisseItems",
+		"data":    data,
+	})
+}
+
 // Get All data
 func GetTotalAllCaisses(c *fiber.Ctx) error {
 	db := database.DB
-	codeEntreprise := c.Params("code_entreprise")
+	entrepriseUUID := c.Params("entreprise_uuid")
 
 	var dataList []models.CaisseItem
-	db.Where("code_entreprise = ?", codeEntreprise).Find(&dataList)
+	db.Where("entreprise_uuid = ?", entrepriseUUID).Find(&dataList)
 
 	var total float64 = 0
 	var totalEntree float64 = 0
@@ -52,10 +72,10 @@ func GetTotalAllCaisses(c *fiber.Ctx) error {
 // Get All data
 func GetAllCaisses(c *fiber.Ctx) error {
 	db := database.DB
-	codeEntreprise := c.Params("code_entreprise")
+	entrepriseUUID := c.Params("entreprise_uuid")
 
 	var data []models.Caisse
-	db.Where("code_entreprise = ?", codeEntreprise).
+	db.Where("entreprise_uuid = ?", entrepriseUUID).
 		Preload("Pos").
 		Order("caisses.updated_at ASC").
 		Find(&data)
@@ -69,11 +89,11 @@ func GetAllCaisses(c *fiber.Ctx) error {
 // Get All data
 func GetAllCaisseByPos(c *fiber.Ctx) error {
 	db := database.DB
-	codeEntreprise := c.Params("code_entreprise")
+	entrepriseUUID := c.Params("entreprise_uuid")
 	posUUId := c.Params("pos_uuid")
 
 	var data []models.Caisse
-	db.Where("code_entreprise = ?", codeEntreprise).
+	db.Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("pos_uuid = ?", posUUId).
 		Preload("Pos").
 		Order("caisses.updated_at ASC").
@@ -88,13 +108,13 @@ func GetAllCaisseByPos(c *fiber.Ctx) error {
 // Get All data by id
 func GetAllCaisseBySearch(c *fiber.Ctx) error {
 	db := database.DB
-	codeEntreprise := c.Params("code_entreprise")
+	entrepriseUUID := c.Params("entreprise_uuid")
 	posUUId := c.Params("pos_uuid")
 
 	search := c.Query("search", "")
 
 	var data []models.Caisse
-	db.Where("code_entreprise = ?", codeEntreprise).
+	db.Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("pos_uuid = ?", posUUId).
 		Where("name ILIKE ?", "%"+search+"%").
 		Preload("Pos").
@@ -163,7 +183,7 @@ func UpdateCaisse(c *fiber.Ctx) error {
 		Name           string `gorm:"not null" json:"name"` // Nom de la caisse
 		Signature      string `json:"signature"`            // Signature de la transaction
 		PosUUID        string `json:"pos_uuid"`             // ID du point de vente
-		CodeEntreprise uint64 `json:"code_entreprise"`      // ID de l'entreprise
+		EntrepriseUUID string `json:"entreprise_uuid"`      // ID de l'entreprise
 	}
 
 	var updateData UpdateData
@@ -184,7 +204,7 @@ func UpdateCaisse(c *fiber.Ctx) error {
 	caisse.Name = updateData.Name
 	caisse.Signature = updateData.Signature
 	caisse.PosUUID = updateData.PosUUID
-	caisse.CodeEntreprise = updateData.CodeEntreprise
+	caisse.EntrepriseUUID = updateData.EntrepriseUUID
 
 	db.Save(&caisse)
 

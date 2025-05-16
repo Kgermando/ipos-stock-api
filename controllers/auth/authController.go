@@ -34,12 +34,14 @@ func Register(c *fiber.Ctx) error {
 	}
 
 	u := &models.User{
+		UUID:           uuid.New().String(),
 		Fullname:       nu.Fullname,
 		Email:          nu.Email,
 		Telephone:      nu.Telephone,
 		Role:           nu.Role,
 		Permission:     nu.Permission,
 		Status:         nu.Status,
+		PosUUID:        nu.PosUUID,
 		EntrepriseUUID: nu.EntrepriseUUID,
 		Signature:      nu.Signature,
 	}
@@ -50,8 +52,6 @@ func Register(c *fiber.Ctx) error {
 		c.Status(400)
 		return c.JSON(err)
 	}
-
-	u.UUID = uuid.New().String()
 
 	database.DB.Create(u)
 
@@ -79,12 +79,12 @@ func Login(c *fiber.Ctx) error {
 
 	u := &models.User{}
 
-	database.DB.Where("email = ? OR phone = ?", lu.Identifier, lu.Identifier).First(&u)
+	database.DB.Where("email = ? OR telephone = ?", lu.Identifier, lu.Identifier).First(&u)
 
 	if u.UUID == "00000000-0000-0000-0000-000000000000" {
 		c.Status(404)
 		return c.JSON(fiber.Map{
-			"message": "invalid email or phone 😰",
+			"message": "invalid email or telephone 😰",
 		})
 	}
 
@@ -133,19 +133,21 @@ func AuthUser(c *fiber.Ctx) error {
 		First(&u)
 
 	r := &models.UserResponse{
-		ID:         u.ID,
-		UUID:       u.UUID,
-		Fullname:   u.Fullname,
-		Email:      u.Email,
-		Telephone:  u.Telephone,
-		Role:       u.Role,
-		Permission: u.Permission,
-		Status:     u.Status,
-		Entreprise: u.Entreprise,
-		Pos:        u.Pos,
-		Signature:  u.Signature,
-		CreatedAt:  u.CreatedAt,
-		UpdatedAt:  u.UpdatedAt,
+		ID:             u.ID,
+		UUID:           u.UUID,
+		Fullname:       u.Fullname,
+		Email:          u.Email,
+		Telephone:      u.Telephone,
+		Role:           u.Role,
+		Permission:     u.Permission,
+		Status:         u.Status,
+		EntrepriseUUID: u.EntrepriseUUID,
+		PosUUID:        u.PosUUID,
+		Entreprise:     u.Entreprise,
+		Pos:            u.Pos,
+		Signature:      u.Signature,
+		CreatedAt:      u.CreatedAt,
+		UpdatedAt:      u.UpdatedAt,
 	}
 	return c.JSON(r)
 }

@@ -20,26 +20,27 @@ type User struct {
 	Role            string     `json:"role"`
 	Permission      string     `json:"permission"`
 	Status          bool       `gorm:"default:false" json:"status"`
-	EntrepriseUUID  string     `json:"entreprise_uuid"`
-	Entreprise      Entreprise `gorm:"foreignKey:EntrepriseUUID" json:"entreprise"`
-	PosUUID         string     `json:"pos_uuid"`
-	Pos             Pos        `gorm:"foreignKey:PosUUID" json:"pos"`
+	EntrepriseUUID  string     `gorm:"type:varchar(255);not null" json:"entreprise_uuid"`
+	Entreprise      Entreprise `gorm:"foreignKey:EntrepriseUUID;references:UUID" json:"entreprise"`
+	PosUUID         string     `gorm:"type:varchar(255);not null" json:"pos_uuid"`
+	Pos             Pos        `gorm:"foreignKey:PosUUID;references:UUID" json:"pos"`
 	Signature       string     `json:"signature"`
 	Sync            bool       `gorm:"default:false" json:"sync"`
 }
 
 type UserResponse struct {
-	ID         uint      `json:"id"`
-	UUID       string    `json:"uuid"`
+	ID         uint       `json:"id"`
+	UUID       string     `json:"uuid"`
 	Fullname   string     `json:"fullname"`
 	Email      string     `json:"email"`
 	Telephone  string     `json:"telephone"`
 	Role       string     `json:"role"`
 	Permission string     `json:"permission"`
 	Status     bool       `json:"status"`
-	Currency   string     `json:"currency"`
 	Entreprise Entreprise `json:"entreprise"`
 	Pos        Pos        `json:"pos"`
+	EntrepriseUUID string     `json:"entreprise_uuid"`
+	PosUUID        string     `json:"pos_uuid"`
 	Signature  string     `json:"signature"`
 	CreatedAt  time.Time  `json:"created_at"`
 	UpdatedAt  time.Time  `json:"updated_at"`

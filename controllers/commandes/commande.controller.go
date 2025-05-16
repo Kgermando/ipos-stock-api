@@ -9,10 +9,30 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+// Synchronisation Send data to Local
+func GetDataSynchronisation(c *fiber.Ctx) error {
+	db := database.DB
+	entrepriseUUID := c.Params("entreprise_uuid")
+	posUUID := c.Params("pos_uuid")
+
+	sync_created := c.Query("sync_created", "2023-01-01") 
+
+	var data []models.Commande
+	db.Where("entreprise_uuid = ?", entrepriseUUID).
+		Where("pos_uuid = ?", posUUID).
+		Where("created_at > ?", sync_created).
+		Find(&data) 
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": "All Commandes",
+		"data":    data,
+	})
+}
+
 // Paginate
 func GetPaginatedCommandeEntreprise(c *fiber.Ctx) error {
 	db := database.DB
-	codeEntreprise := c.Params("code_entreprise")
+	entrepriseUUID := c.Params("entreprise_uuid")
 
 	page, err := strconv.Atoi(c.Query("page", "1"))
 	if err != nil || page <= 0 {
@@ -31,11 +51,11 @@ func GetPaginatedCommandeEntreprise(c *fiber.Ctx) error {
 
 	// Count total records matching the search query
 	db.Model(&models.Commande{}).
-		Where("code_entreprise = ?", codeEntreprise).
+		Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("ncommande::TEXT ILIKE ? OR status ILIKE ?", "%"+search+"%", "%"+search+"%").
 		Count(&totalRecords)
 
-	err = db.Where("code_entreprise = ?", codeEntreprise).
+	err = db.Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("ncommande::TEXT ILIKE ? OR status ILIKE ?", "%"+search+"%", "%"+search+"%").
 		Offset(offset).
 		Limit(limit).
@@ -70,14 +90,79 @@ func GetPaginatedCommandeEntreprise(c *fiber.Ctx) error {
 	})
 }
 
+// Paginate
+func GetPaginatedCommandePOS(c *fiber.Ctx) error {
+	db := database.DB
+	entrepriseUUID := c.Params("entreprise_uuid")
+	posUUID := c.Params("pos_uuid")
+
+	page, err := strconv.Atoi(c.Query("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1 // Default page number
+	}
+	limit, err := strconv.Atoi(c.Query("limit", "15"))
+	if err != nil || limit <= 0 {
+		limit = 15
+	}
+	offset := (page - 1) * limit
+
+	search := c.Query("search", "")
+
+	var dataList []models.Commande
+	var totalRecords int64
+
+	// Count total records matching the search query
+	db.Model(&models.Commande{}).
+		Where("entreprise_uuid = ?", entrepriseUUID).
+		Where("pos_uuid = ?", posUUID).
+		Where("ncommande::TEXT ILIKE ? OR status ILIKE ?", "%"+search+"%", "%"+search+"%").
+		Count(&totalRecords)
+
+	err = db.Where("entreprise_uuid = ?", entrepriseUUID).
+	Where("pos_uuid = ?", posUUID).
+		Where("ncommande::TEXT ILIKE ? OR status ILIKE ?", "%"+search+"%", "%"+search+"%").
+		Offset(offset).
+		Limit(limit).
+		Order("commandes.updated_at DESC").
+		Preload("CommandeLines").
+		Find(&dataList).Error
+
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to fetch commande",
+			"error":   err.Error(),
+		})
+	}
+
+	// Calculate total pages
+	totalPages := int((totalRecords + int64(limit) - 1) / int64(limit))
+
+	// Prepare pagination metadata
+	pagination := map[string]interface{}{
+		"total_records": totalRecords,
+		"total_pages":   totalPages,
+		"current_page":  page,
+		"page_size":     limit,
+	}
+
+	return c.JSON(fiber.Map{
+		"status":     "success",
+		"message":    "All commandes paginated",
+		"data":       dataList,
+		"pagination": pagination,
+	})
+}
+
+
 // Get All data
 func GetAllCommandes(c *fiber.Ctx) error {
 	db := database.DB
-	codeEntreprise := c.Params("code_entreprise")
+	entrepriseUUID := c.Params("entreprise_uuid")
 	posUUID := c.Params("pos_uuid")
 
 	var data []models.Commande
-	db.Where("code_entreprise = ?", codeEntreprise).
+	db.Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("pos_uuid = ?", posUUID).
 		Preload("CommandeLines").
 		Find(&data)
@@ -146,7 +231,7 @@ func UpdateCommande(c *fiber.Ctx) error {
 		Status         string `json:"status"`    // Ouverte et Fermée
 		ClientUUID     string `json:"client_uuid"`
 		Signature      string `json:"signature"`
-		CodeEntreprise uint64 `json:"code_entreprise"`
+		EntrepriseUUID string `json:"entreprise_uuid"`
 	}
 
 	var updateData UpdateData
@@ -169,7 +254,7 @@ func UpdateCommande(c *fiber.Ctx) error {
 	commande.Status = updateData.Status
 	commande.ClientUUID = updateData.ClientUUID
 	commande.Signature = updateData.Signature
-	commande.CodeEntreprise = updateData.CodeEntreprise
+	commande.EntrepriseUUID = updateData.EntrepriseUUID
 
 	db.Save(&commande)
 

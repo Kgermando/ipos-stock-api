@@ -10,6 +10,26 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+// Synchronisation Send data to Local
+func GetDataSynchronisation(c *fiber.Ctx) error {
+	db := database.DB
+	entrepriseUUID := c.Params("entreprise_uuid")
+	posUUID := c.Params("pos_uuid")
+
+	sync_created := c.Query("sync_created", "2023-01-01") 
+
+	var data []models.Pos
+	db.Where("entreprise_uuid = ?", entrepriseUUID).
+		Where("pos_uuid = ?", posUUID).
+		Where("created_at > ?", sync_created).
+		Find(&data) 
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": "All Pos",
+		"data":    data,
+	})
+}
+
 // Paginate
 func GetPaginatedPos(c *fiber.Ctx) error {
 	db := database.DB
@@ -42,24 +62,24 @@ func GetPaginatedPos(c *fiber.Ctx) error {
 		Preload("Entreprise").
 		Find(&dataList).Error
 
-		if err != nil {
-			return c.Status(500).JSON(fiber.Map{
-				"status":  "error",
-				"message": "Failed to fetch pos",
-				"error":   err.Error(),
-			})
-		}
-	
-		// Calculate total pages
-		totalPages := int((totalRecords + int64(limit) - 1) / int64(limit))
-	
-		// Prepare pagination metadata
-		pagination := map[string]interface{}{
-			"total_records": totalRecords,
-			"total_pages":   totalPages,
-			"current_page":  page,
-			"page_size":     limit,
-		}
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to fetch pos",
+			"error":   err.Error(),
+		})
+	}
+
+	// Calculate total pages
+	totalPages := int((totalRecords + int64(limit) - 1) / int64(limit))
+
+	// Prepare pagination metadata
+	pagination := map[string]interface{}{
+		"total_records": totalRecords,
+		"total_pages":   totalPages,
+		"current_page":  page,
+		"page_size":     limit,
+	}
 
 	return c.JSON(fiber.Map{
 		"status":     "success",

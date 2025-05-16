@@ -18,11 +18,11 @@ type Fournisseur struct {
 	TypeFourniture string `json:"type_fourniture"`
 
 	Signature      string `json:"signature"`
-	CodeEntreprise uint64 `json:"code_entreprise"`
+	EntrepriseUUID string `json:"entreprise_uuid"`
 
-	PosUUID string `json:"pos_uuid"`
-	Pos     Pos    `gorm:"foreignKey:PosUUID"`
-	Sync            bool       `gorm:"default:false" json:"sync"`
+	PosUUID string `gorm:"type:varchar(255);not null" json:"pos_uuid"`
+	Pos     Pos    `gorm:"foreignKey:PosUUID;references:UUID"` // Point de vente
+	Sync    bool   `gorm:"default:false" json:"sync"`
 
-	Stocks []Stock `gorm:"foreignKey:FournisseurUUID"`
+	Stocks []Stock `gorm:"foreignKey:FournisseurUUID;references:UUID"` // Liste des stocks du fournisseur
 }

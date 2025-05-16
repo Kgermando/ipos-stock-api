@@ -8,8 +8,8 @@ type Pos struct {
 	gorm.Model
 
 	UUID           string     `gorm:"type:text;not null;unique" json:"uuid"` // Explicitly set type:text
-	EntrepriseUUID string     `json:"entreprise_uuid"`
-	Entreprise     Entreprise `gorm:"foreignKey:EntrepriseUUID"`
+	EntrepriseUUID string     `gorm:"type:varchar(255);not null" json:"entreprise_uuid"`
+	Entreprise     Entreprise `gorm:"foreignKey:EntrepriseUUID;references:UUID"`
 	Name           string     `gorm:"not null" json:"name"`
 	Adresse        string     `json:"adresse"`
 	Email          string     `json:"email"`
@@ -18,11 +18,11 @@ type Pos struct {
 	Status         bool       `gorm:"not null" json:"status"` // Actif ou Inactif
 	Signature      string     `json:"signature"`
 	CodeEntreprise uint64     `json:"code_entreprise"`
-	Sync            bool       `gorm:"default:false" json:"sync"`
+	Sync           bool       `gorm:"default:false" json:"sync"`
 
-	Users        []User        `gorm:"foreignKey:PosUUID"`
-	Products     []Product     `gorm:"foreignKey:PosUUID"`
-	Commandes    []Commande    `gorm:"foreignKey:PosUUID"`
-	Clients      []Client      `gorm:"foreignKey:PosUUID"`
-	Fournisseurs []Fournisseur `gorm:"foreignKey:PosUUID"`
+	Users        []User        `gorm:"foreignKey:PosUUID;references:UUID"` // Liste des utilisateurs du point de vente
+	Products     []Product     `gorm:"foreignKey:PosUUID;references:UUID"` // Liste des utilisateurs du point de vente
+	Commandes    []Commande    `gorm:"foreignKey:PosUUID;references:UUID"` // Liste des utilisateurs du point de vente
+	Clients      []Client      `gorm:"foreignKey:PosUUID;references:UUID"` // Liste des utilisateurs du point de vente
+	Fournisseurs []Fournisseur `gorm:"foreignKey:PosUUID;references:UUID"` // Liste des utilisateurs du point de vente
 }

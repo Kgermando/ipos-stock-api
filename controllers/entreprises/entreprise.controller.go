@@ -177,6 +177,7 @@ func UpdateEntreprise(c *fiber.Ctx) error {
 		Telephone      string    `json:"telephone"` // Telephone officiel
 		Manager        string    `json:"manager"`
 		Status         bool      `json:"status"`
+		Currency       string    `json:"currency"` // Devise de l'entreprise
 		TypeAbonnement string    `json:"type_abonnement"`
 		Abonnement     time.Time `json:"abonnement"`
 		Signature      string    `json:"signature"`

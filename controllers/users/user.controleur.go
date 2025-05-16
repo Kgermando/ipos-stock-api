@@ -9,9 +9,31 @@ import (
 	"github.com/kgermando/ipos-stock-api/utils"
 )
 
+// Synchronisation Send data to Local
+func GetDataSynchronisation(c *fiber.Ctx) error {
+	db := database.DB
+	entrepriseUUID := c.Params("entreprise_uuid")
+	posUUID := c.Params("pos_uuid")
+
+	sync_created := c.Query("sync_created", "2023-01-01") 
+
+	var data []models.User
+	db.Where("entreprise_uuid = ?", entrepriseUUID).
+		Where("pos_uuid = ?", posUUID).
+		Where("created_at > ?", sync_created).
+		Find(&data) 
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": "All users",
+		"data":    data,
+	})
+}
+
 // Paginate
 func GetPaginatedUsers(c *fiber.Ctx) error {
 	db := database.DB
+
+	entrepriseUUID := c.Params("entreprise_uuid")
 
 	// Parse query parameters for pagination
 	page, err := strconv.Atoi(c.Query("page", "1"))
@@ -32,14 +54,18 @@ func GetPaginatedUsers(c *fiber.Ctx) error {
 
 	// Count total records matching the search query
 	db.Model(&models.User{}).
-		Where("fullname ILIKE ? OR title ILIKE ?", "%"+search+"%", "%"+search+"%").
+		Where("entreprise_uuid = ?", entrepriseUUID).
+		Where("fullname ILIKE ? OR role ILIKE ?", "%"+search+"%", "%"+search+"%").
 		Count(&totalRecords)
 
 	err = db.
-		Where("fullname ILIKE ? OR title ILIKE ?", "%"+search+"%", "%"+search+"%").
+	  Where("entreprise_uuid = ?", entrepriseUUID).
+		Where("fullname ILIKE ? OR role ILIKE ?", "%"+search+"%", "%"+search+"%").
 		Offset(offset).
 		Limit(limit).
 		Order("users.updated_at DESC").
+		Preload("Entreprise").
+		Preload("Pos").
 		Find(&users).Error
 
 	if err != nil {
@@ -94,6 +120,8 @@ func GetPaginatedNoSerach(c *fiber.Ctx) error {
 		Offset(offset).
 		Limit(limit).
 		Order("users.updated_at DESC").
+		Preload("Entreprise").
+		Preload("Pos").
 		Find(&users).Error
 
 	if err != nil {
@@ -193,6 +221,7 @@ func CreateUser(c *fiber.Ctx) error {
 		Permission:     p.Permission,
 		Status:         p.Status,
 		EntrepriseUUID: p.EntrepriseUUID,
+		PosUUID:      p.PosUUID,
 		Signature:      p.Signature,
 	}
 

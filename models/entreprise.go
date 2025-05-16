@@ -21,13 +21,14 @@ type Entreprise struct {
 	Telephone      string `gorm:"not null" json:"telephone"` // Telephone officiel
 	Manager        string `gorm:"not null" json:"manager"`
 	Status         bool   `gorm:"not null" json:"status"`
+	Currency       string `gorm:"not null;default:CDF" json:"currency"` // Devise de l'entreprise, default CDF
 	TypeAbonnement string `json:"type_abonnement"`
 	Signature      string `json:"signature"`
 	Sync           bool   `gorm:"default:false" json:"sync"`
 
-	Users      []User       `gorm:"foreignKey:EntrepriseUUID"`
-	Pos        []Pos        `gorm:"foreignKey:EntrepriseUUID"`
-	Abonnement []Abonnement `gorm:"foreignKey:EntrepriseUUID"`
+	Users      []User       `gorm:"foreignKey:EntrepriseUUID;references:UUID"` // Liste des utilisateurs de l'entreprise
+	Pos        []Pos        `gorm:"foreignKey:EntrepriseUUID;references:UUID"` // Liste des utilisateurs de l'entreprise
+	Abonnement []Abonnement `gorm:"foreignKey:EntrepriseUUID;references:UUID"` // Liste des utilisateurs de l'entreprise
 }
 
 type EntrepriseInfos struct {
@@ -44,6 +45,7 @@ type EntrepriseInfos struct {
 	Telephone       string `json:"telephone"` // Telephone officiel
 	Manager         string `json:"manager"`
 	Status          bool   `json:"status"`
+	Currency        string `json:"currency"` // Devise de l'entreprise
 	TypeAbonnement  string `json:"type_abonnement"`
 	Signature       string `json:"signature"`
 	TotalUser       int    `json:"total_user"`

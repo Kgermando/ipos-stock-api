@@ -8,8 +8,8 @@ type Product struct {
 	gorm.Model
 
 	UUID           string  `gorm:"type:text;not null;unique" json:"uuid"` // Explicitly set type:text
-	PosUUID        string  `json:"pos_uuid"`
-	Pos            Pos     `gorm:"foreignKey:PosUUID"`
+	PosUUID        string  `gorm:"type:varchar(255);not null" json:"pos_uuid"`
+	Pos            Pos     `gorm:"foreignKey:PosUUID;references:UUID"` // Point de vente
 	Image          string  `json:"image"`
 	Reference      string  `gorm:"not null" json:"reference"`
 	Name           string  `gorm:"not null" json:"name"`
@@ -21,12 +21,12 @@ type Product struct {
 	StockEndommage float64 `gorm:"default:0" json:"stock_endommage"` // stock endommage
 	Restitution    float64 `gorm:"default:0" json:"restitution"`     // stock restitution
 
-	CodeEntreprise uint64 `json:"code_entreprise"`
+	EntrepriseUUID string `json:"entreprise_uuid"`
 	Signature      string `json:"signature"`
-	Sync            bool       `gorm:"default:false" json:"sync"`
+	Sync           bool   `gorm:"default:false" json:"sync"`
 
-	Stocks          []Stock          `gorm:"foreignKey:ProductUUID"`
-	StockEndommages []StockEndommage `gorm:"foreignKey:ProductUUID"`
-	CommadeLines    []CommandeLine   `gorm:"foreignKey:ProductUUID"`
-	Restitutions    []Restitution    `gorm:"foreignKey:ProductUUID"`
+	Stocks          []Stock          `gorm:"foreignKey:ProductUUID;references:UUID"` // Liste des stocks du produit
+	StockEndommages []StockEndommage `gorm:"foreignKey:ProductUUID;references:UUID"` // Liste des stocks du produit
+	CommadeLines    []CommandeLine   `gorm:"foreignKey:ProductUUID;references:UUID"` // Liste des stocks du produit
+	Restitutions    []Restitution    `gorm:"foreignKey:ProductUUID;references:UUID"` // Liste des stocks du produit
 }

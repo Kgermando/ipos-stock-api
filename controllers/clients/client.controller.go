@@ -12,10 +12,31 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+// Synchronisation Send data to Local
+func GetDataSynchronisation(c *fiber.Ctx) error {
+	db := database.DB
+	entrepriseUUID := c.Params("entreprise_uuid")
+	posUUID := c.Params("pos_uuid")
+
+	sync_created := c.Query("sync_created", "2023-01-01") 
+
+	var data []models.Client
+	db.Where("entreprise_uuid = ?", entrepriseUUID).
+		Where("pos_uuid = ?", posUUID).
+		Where("created_at > ?", sync_created).
+		Find(&data) 
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": "All Clients",
+		"data":    data,
+	})
+}
+
 // Paginate
 func GetPaginatedClient(c *fiber.Ctx) error {
 	db := database.DB
-	codeEntreprise := c.Params("code_entreprise")
+	entrepriseUUID := c.Params("entreprise_uuid")
+	posUUID := c.Params("pos_uuid")
 
 	// Parse query parameters for pagination
 	page, err := strconv.Atoi(c.Query("page", "1"))
@@ -35,11 +56,13 @@ func GetPaginatedClient(c *fiber.Ctx) error {
 
 	// Count total records matching the search query
 	db.Model(&models.Client{}).
-		Where("code_entreprise = ?", codeEntreprise).
+		Where("entreprise_uuid = ?", entrepriseUUID).
+		Where("pos_uuid = ?", posUUID).
 		Where("fullname ILIKE ?", "%"+search+"%").
 		Count(&totalRecords)
 
-	err = db.Where("code_entreprise = ?", codeEntreprise).
+	err = db.Where("entreprise_uuid = ?", entrepriseUUID).
+		Where("pos_uuid = ?", posUUID).
 		Where("fullname ILIKE ?", "%"+search+"%").
 		Offset(offset).
 		Limit(limit).
@@ -75,11 +98,11 @@ func GetPaginatedClient(c *fiber.Ctx) error {
 
 // Get All data
 func GetAllClients(c *fiber.Ctx) error {
-	codeEntreprise := c.Params("code_entreprise")
+	entrepriseUUID := c.Params("entreprise_uuid")
 	db := database.DB
 
 	var data []models.Client
-	db.Where("code_entreprise = ?", codeEntreprise).Find(&data)
+	db.Where("entreprise_uuid = ?", entrepriseUUID).Find(&data)
 	return c.JSON(fiber.Map{
 		"status":  "success",
 		"message": "All clients",
@@ -148,7 +171,7 @@ func UpdateClient(c *fiber.Ctx) error {
 		Organisation   string `json:"organisation"`
 		WebSite        string `json:"website"`
 		Signature      string `json:"signature"`
-		CodeEntreprise uint64 `json:"code_entreprise"`
+		EntrepriseUUID string `json:"entreprise_uuid"`
 	}
 
 	var updateData UpdateData
@@ -175,7 +198,7 @@ func UpdateClient(c *fiber.Ctx) error {
 	client.Organisation = updateData.Organisation
 	client.WebSite = updateData.WebSite
 	client.Signature = updateData.Signature
-	client.CodeEntreprise = updateData.CodeEntreprise
+	client.EntrepriseUUID = updateData.EntrepriseUUID
 
 	db.Save(&client)
 
@@ -223,7 +246,7 @@ func UploadCsvDataClient(c *fiber.Ctx) error {
 
 	type UploadCSV struct {
 		Data           []models.Client `json:"data"`
-		CodeEntreprise uint64          `json:"code_entreprise"`
+		EntrepriseUUID string          `json:"entreprise_uuid"`
 		Signature      string          `json:"signature"`
 	}
 
@@ -245,7 +268,7 @@ func UploadCsvDataClient(c *fiber.Ctx) error {
 			Organisation:   client.Organisation,
 			WebSite:        client.WebSite,
 			Signature:      dataUpload.Signature,
-			CodeEntreprise: dataUpload.CodeEntreprise,
+			EntrepriseUUID: dataUpload.EntrepriseUUID,
 		}
 		if client.Fullname == "" {
 			continue

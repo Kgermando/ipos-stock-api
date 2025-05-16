@@ -1,12 +1,34 @@
 package stocks
 
 import (
+	"strconv"
+
 	"github.com/kgermando/ipos-stock-api/database"
 	"github.com/kgermando/ipos-stock-api/models"
-	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 )
+
+
+// Synchronisation Send data to Local
+func GetDataSynchronisationRestitution(c *fiber.Ctx) error {
+	db := database.DB
+	entrepriseUUID := c.Params("entreprise_uuid")
+	posUUID := c.Params("pos_uuid")
+
+	sync_created := c.Query("sync_created", "2023-01-01") 
+
+	var data []models.Restitution
+	db.Where("entreprise_uuid = ?", entrepriseUUID).
+		Where("pos_uuid = ?", posUUID).
+		Where("created_at > ?", sync_created).
+		Find(&data) 
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": "All Restitutions",
+		"data":    data,
+	})
+}
 
 // Paginate
 func GetPaginatedRestitution(c *fiber.Ctx) error {
@@ -161,7 +183,7 @@ func UpdateRestitution(c *fiber.Ctx) error {
 		Motif           string  `json:"motif"`
 		FournisseurUUID string  `json:"fournisseur_uuid"`
 		Signature       string  `json:"signature"`
-		CodeEntreprise  uint64  `json:"code_entreprise"`
+		EntrepriseUUID  string  `json:"entreprise_uuid"`
 	}
 
 	var updateData UpdateData
@@ -187,7 +209,7 @@ func UpdateRestitution(c *fiber.Ctx) error {
 	restitution.Motif = updateData.Motif
 	restitution.FournisseurUUID = updateData.FournisseurUUID
 	restitution.Signature = updateData.Signature
-	restitution.CodeEntreprise = updateData.CodeEntreprise
+	restitution.EntrepriseUUID = updateData.EntrepriseUUID
 
 	db.Save(&restitution)
 

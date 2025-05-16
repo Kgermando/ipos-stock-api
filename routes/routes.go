@@ -27,22 +27,14 @@ func Setup(app *fiber.App) {
 	a.Post("/forgot-password", auth.Forgot)
 	a.Post("/reset/:token", auth.ResetPassword)
 
+	a.Post("/entreprise", entreprises.CreateEntreprise)
+
 	// app.Use(middlewares.IsAuthenticated)
 
 	a.Get("/user", auth.AuthUser)
 	a.Put("/profil/info", auth.UpdateInfo)
 	a.Put("/change-password", auth.ChangePassword)
 	a.Post("/logout", auth.Logout)
-
-	// Users controller
-	u := api.Group("/users")
-	u.Get("/all", users.GetAllUsers)
-	u.Get("/all/paginate", users.GetPaginatedUsers)
-	u.Get("/all/paginate/nosearch", users.GetPaginatedNoSerach)
-	u.Get("/get/:uuid", users.GetUser)
-	u.Post("/create", users.CreateUser)
-	u.Put("/update/:uuid", users.UpdateUser)
-	u.Delete("/delete/:uuid", users.DeleteUser)
 
 	// Entreprise controller
 	e := api.Group("/entreprises")
@@ -53,12 +45,24 @@ func Setup(app *fiber.App) {
 	e.Put("/update/:uuid", entreprises.UpdateEntreprise)
 	e.Delete("/delete/:uuid", entreprises.DeleteEntreprise)
 
+	// Users controller
+	u := api.Group("/users")
+	u.Get("/all", users.GetAllUsers)
+	u.Get("/all/paginate/nosearch", users.GetPaginatedNoSerach)
+	u.Get("/:entreprise_uuid/all/paginate", users.GetPaginatedUsers)
+	u.Get("/:entreprise_uuid/:pos_uuid/all/synchronistion", users.GetDataSynchronisation)
+	u.Get("/get/:uuid", users.GetUser)
+	u.Post("/create", users.CreateUser)
+	u.Put("/update/:uuid", users.UpdateUser)
+	u.Delete("/delete/:uuid", users.DeleteUser)
+
 	// POS controller
 	p := api.Group("/pos")
 	p.Get("/all", pos.GetAllPoss)
-	p.Get("/all/paginate", pos.GetPaginatedPos)
 	p.Get("/all/paginate/:entreprise_uuid", pos.GetPaginatedPosByUUID)
 	p.Get("/all/:entreprise_uuid", pos.GetAllPosByUUId)
+	p.Get("/:entreprise_uuid/all/paginate", pos.GetPaginatedPos)
+	p.Get("/:entreprise_uuid/:pos_uuid/all/synchronistion", pos.GetDataSynchronisation)
 	p.Get("/get/:uuid", pos.GetPos)
 	p.Post("/create", pos.CreatePos)
 	p.Put("/update/:uuid", pos.UpdatePos)
@@ -66,9 +70,10 @@ func Setup(app *fiber.App) {
 
 	// Caisses controller
 	cais := api.Group("/caisses")
-	cais.Get("/:code_entreprise/all/total", caisses.GetTotalAllCaisses)
-	cais.Get("/:code_entreprise/all", caisses.GetAllCaisses)
-	cais.Get("/:code_entreprise/:pos_uuid/all", caisses.GetAllCaisseByPos)
+	cais.Get("/:entreprise_uuid/all/total", caisses.GetTotalAllCaisses)
+	cais.Get("/:entreprise_uuid/all", caisses.GetAllCaisses)
+	cais.Get("/:entreprise_uuid/:pos_uuid/all", caisses.GetAllCaisseByPos)
+	cais.Get("/:entreprise_uuid/:caisse_uuid/all/synchronistion", caisses.GetDataSynchronisation)
 	cais.Get("/get/:uuid", caisses.GetCaisse)
 	cais.Post("/create", caisses.CreateCaisse)
 	cais.Put("/update/:uuid", caisses.UpdateCaisse)
@@ -76,8 +81,9 @@ func Setup(app *fiber.App) {
 
 	// Caisse item Controller
 	caisseItem := api.Group("/caisse-items")
-	caisseItem.Get("/:code_entreprise/:caisse_uuid/all/paginate", caisses.GetPaginatedCaisseItems)
-	caisseItem.Get("/:code_entreprise/:caisse_uuid/all", caisses.GetAllCaisseItems)
+	caisseItem.Get("/:entreprise_uuid/:caisse_uuid/all/paginate", caisses.GetPaginatedCaisseItems)
+	caisseItem.Get("/:entreprise_uuid/:caisse_uuid/all", caisses.GetAllCaisseItems)
+	caisseItem.Get("/:entreprise_uuid/:caisse_uuid/all/synchronistion", caisses.GetDataSynchronisationCaisseItem)
 	caisseItem.Get("/get/:uuid", caisses.GetCaisseItem)
 	caisseItem.Post("/create", caisses.CreateCaisseItem)
 	caisseItem.Put("/update/:uuid", caisses.UpdateCaisseItem)
@@ -85,10 +91,11 @@ func Setup(app *fiber.App) {
 
 	// Product controller
 	pr := api.Group("/products")
-	pr.Get("/:code_entreprise/all/paginate", products.GetPaginatedProductEntreprise)
-	pr.Get("/:code_entreprise/:pos_uuid/all", products.GetAllProducts)
-	pr.Get("/:code_entreprise/:pos_uuid/all/paginate", products.GetPaginatedProductByPosUUID)
-	pr.Get("/:code_entreprise/:pos_uuid/all/search", products.GetAllProductBySearch)
+	pr.Get("/:entreprise_uuid/all/paginate", products.GetPaginatedProductEntreprise)
+	pr.Get("/:entreprise_uuid/:pos_uuid/all", products.GetAllProducts)
+	pr.Get("/:entreprise_uuid/:pos_uuid/all/paginate", products.GetPaginatedProductByPosUUID)
+	pr.Get("/:entreprise_uuid/:pos_uuid/all/search", products.GetAllProductBySearch)
+	pr.Get("/:entreprise_uuid/:pos_uuid/all/synchronistion", products.GetDataSynchronisation)
 	pr.Get("/get/:uuid", products.GetProduct)
 	pr.Post("/create", products.CreateProduct)
 	pr.Put("/update/:uuid", products.UpdateProduct)
@@ -103,6 +110,7 @@ func Setup(app *fiber.App) {
 	s.Get("/all/total/:product_uuid", stocks.GetTotalStock)
 	s.Get("/all/get/:product_uuid", stocks.GetStockMargeBeneficiaire)
 	s.Get("/all/:product_uuid", stocks.GetAllStocks)
+	s.Get("/:entreprise_uuid/:pos_uuid/all/synchronistion", stocks.GetDataSynchronisationStock)
 	s.Get("/get/:uuid", stocks.GetStock)
 	s.Post("/create", stocks.CreateStock)
 	s.Put("/update/:uuid", stocks.UpdateStock)
@@ -113,6 +121,7 @@ func Setup(app *fiber.App) {
 	se.Get("/all/paginate/:product_uuid", stocks.GetPaginatedStockEndommage)
 	se.Get("/all/total/:product_uuid", stocks.GetTotalStockEndommage)
 	se.Get("/all/:product_uuid", stocks.GetAllStockEndommages)
+	se.Get("/:entreprise_uuid/:pos_uuid/all/synchronistion", stocks.GetDataSynchronisationStockEndommage)
 	se.Get("/get/:uuid", stocks.GetStockEndommage)
 	se.Post("/create", stocks.CreateStockEndommage)
 	se.Put("/update/:uuid", stocks.UpdateStockEndommage)
@@ -123,6 +132,7 @@ func Setup(app *fiber.App) {
 	re.Get("/all/paginate/:product_uuid", stocks.GetPaginatedRestitution)
 	re.Get("/all/total/:product_uuid", stocks.GetTotalRestitution)
 	re.Get("/all/:product_uuid", stocks.GetAllRestitutions)
+	re.Get("/:entreprise_uuid/:pos_uuid/all/synchronistion", stocks.GetDataSynchronisationRestitution)
 	re.Get("/get/:uuid", stocks.GetRestitution)
 	re.Post("/create", stocks.CreateRestitution)
 	re.Put("/update/:uuid", stocks.UpdateRestitution)
@@ -130,8 +140,9 @@ func Setup(app *fiber.App) {
 
 	// Client controller
 	cl := api.Group("/clients")
-	cl.Get("/:code_entreprise/all", clients.GetAllClients)
-	cl.Get("/:code_entreprise/all/paginate", clients.GetPaginatedClient)
+	cl.Get("/:entreprise_uuid/all", clients.GetAllClients)
+	cl.Get("/:entreprise_uuid/:pos_uuid/all/paginate", clients.GetPaginatedClient)
+	cl.Get("/:entreprise_uuid/:pos_uuid/all/synchronistion", clients.GetDataSynchronisation)
 	cl.Get("/get/:uuid", clients.GetClient)
 	cl.Post("/create", clients.CreateClient)
 	cl.Post("/uploads", clients.UploadCsvDataClient)
@@ -140,8 +151,9 @@ func Setup(app *fiber.App) {
 
 	// Fournisseur controller
 	fs := api.Group("/fournisseurs")
-	fs.Get("/:code_entreprise/all", fournisseurs.GetAllFournisseurs)
-	fs.Get("/:code_entreprise/all/paginate", fournisseurs.GetPaginatedFournisseur)
+	fs.Get("/:entreprise_uuid/all", fournisseurs.GetAllFournisseurs)
+	fs.Get("/:entreprise_uuid/:pos_uuid/all/paginate", fournisseurs.GetPaginatedFournisseur)
+	fs.Get("/:entreprise_uuid/:pos_uuid/all/synchronistion", fournisseurs.GetDataSynchronisation)
 	fs.Get("/get/:uuid", fournisseurs.GetFournisseur)
 	fs.Post("/create", fournisseurs.CreateFournisseur)
 	fs.Put("/update/:uuid", fournisseurs.UpdateFournisseur)
@@ -149,8 +161,10 @@ func Setup(app *fiber.App) {
 
 	// Commande controller
 	cmd := api.Group("/commandes")
-	cmd.Get("/:code_entreprise/all/paginate", commandes.GetPaginatedCommandeEntreprise)
-	cmd.Get("/:code_entreprise/:pos_uuid/all", commandes.GetAllCommandes)
+	cmd.Get("/:entreprise_uuid/all/paginate", commandes.GetPaginatedCommandeEntreprise)
+	cmd.Get("/:entreprise_uuid/:pos_uuid/all", commandes.GetAllCommandes)
+	cmd.Get("/:entreprise_uuid/:pos_uuid/all/paginate", commandes.GetPaginatedCommandePOS)
+	cmd.Get("/:entreprise_uuid/:pos_uuid/all/synchronistion", commandes.GetDataSynchronisation)
 	cmd.Get("/get/:uuid", commandes.GetCommande)
 	cmd.Post("/create", commandes.CreateCommande)
 	cmd.Put("/update/:uuid", commandes.UpdateCommande)
@@ -162,9 +176,9 @@ func Setup(app *fiber.App) {
 	cmdl.Get("/all/paginate/:commande_uuid", commandes.GetPaginatedCommandeLineByID)
 	cmdl.Get("/all/total/:product_uuid", commandes.GetTotalCommandeLine)
 	cmdl.Get("/all/:commande_uuid", commandes.GetAllCommandeLineByUUId)
+	cmdl.Get("/:entreprise_uuid/:pos_uuid/all/synchronistion", commandes.GetDataSynchronisationCommandeLine)
 	cmdl.Get("/get/:uuid", commandes.GetCommandeLine)
 	cmdl.Post("/create", commandes.CreateCommandeLine)
 	cmdl.Put("/update/:uuid", commandes.UpdateCommandeLine)
 	cmdl.Delete("/delete/:uuid", commandes.DeleteCommandeLine)
-
 }

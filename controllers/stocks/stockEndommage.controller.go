@@ -1,12 +1,33 @@
 package stocks
 
 import (
+	"strconv"
+
 	"github.com/kgermando/ipos-stock-api/database"
 	"github.com/kgermando/ipos-stock-api/models"
-	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 )
+
+// Synchronisation Send data to Local
+func GetDataSynchronisationStockEndommage(c *fiber.Ctx) error {
+	db := database.DB
+	entrepriseUUID := c.Params("entreprise_uuid")
+	posUUID := c.Params("pos_uuid")
+
+	sync_created := c.Query("sync_created", "2023-01-01") 
+
+	var data []models.StockEndommage
+	db.Where("entreprise_uuid = ?", entrepriseUUID).
+		Where("pos_uuid = ?", posUUID).
+		Where("created_at > ?", sync_created).
+		Find(&data) 
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": "All StockEndommages",
+		"data":    data,
+	})
+}
 
 // Paginate
 func GetPaginatedStockEndommage(c *fiber.Ctx) error {
@@ -162,7 +183,7 @@ func UpdateStockEndommage(c *fiber.Ctx) error {
 		PrixAchat      float64 `json:"prix_achat"`
 		Raison         string  `json:"raison"` // Raison de l'endommagement
 		Signature      string  `json:"signature"`
-		CodeEntreprise uint64  `json:"code_entreprise"`
+		EntrepriseUUID string  `json:"entreprise_uuid"`
 	}
 
 	var updateData UpdateData
@@ -186,7 +207,7 @@ func UpdateStockEndommage(c *fiber.Ctx) error {
 	stockEndommage.PrixAchat = updateData.PrixAchat
 	stockEndommage.Raison = updateData.Raison
 	stockEndommage.Signature = updateData.Signature
-	stockEndommage.CodeEntreprise = updateData.CodeEntreprise
+	stockEndommage.EntrepriseUUID = updateData.EntrepriseUUID
 
 	db.Save(&stockEndommage)
 

@@ -12,10 +12,31 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
+// Synchronisation Send data to Local
+func GetDataSynchronisation(c *fiber.Ctx) error {
+	db := database.DB
+	entrepriseUUID := c.Params("entreprise_uuid")
+	posUUID := c.Params("pos_uuid")
+
+	sync_created := c.Query("sync_created", "2023-01-01") 
+
+	var data []models.Fournisseur
+	db.Where("entreprise_uuid = ?", entrepriseUUID).
+		Where("pos_uuid = ?", posUUID).
+		Where("created_at > ?", sync_created).
+		Find(&data) 
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": "All Fournisseur",
+		"data":    data,
+	})
+}
+
 // Paginate
 func GetPaginatedFournisseur(c *fiber.Ctx) error {
 	db := database.DB
-	codeEntreprise := c.Params("code_entreprise")
+	entrepriseUUID := c.Params("entreprise_uuid")
+	posUUID := c.Params("pos_uuid")
 
 	page, err := strconv.Atoi(c.Query("page", "1"))
 	if err != nil || page <= 0 {
@@ -35,11 +56,13 @@ func GetPaginatedFournisseur(c *fiber.Ctx) error {
 
 	// Count total records matching the search query
 	db.Model(&models.Fournisseur{}).
-		Where("code_entreprise = ?", codeEntreprise).
+		Where("entreprise_uuid = ?", entrepriseUUID).
+		Where("pos_uuid = ?", posUUID).
 		Where("entreprise_name ILIKE ?", "%"+search+"%").
 		Count(&totalRecords)
 
-	err = db.Where("code_entreprise = ?", codeEntreprise).
+	err = db.Where("entreprise_uuid = ?", entrepriseUUID).
+		Where("pos_uuid = ?", posUUID).
 		Where("entreprise_name ILIKE ?", "%"+search+"%").
 		Offset(offset).
 		Limit(limit).
@@ -75,11 +98,11 @@ func GetPaginatedFournisseur(c *fiber.Ctx) error {
 
 // Get All data
 func GetAllFournisseurs(c *fiber.Ctx) error {
-	codeEntreprise := c.Params("code_entreprise")
+	entrepriseUUID := c.Params("entreprise_uuid")
 	db := database.DB
 
 	var data []models.Fournisseur
-	db.Where("code_entreprise = ?", codeEntreprise).Find(&data)
+	db.Where("entreprise_uuid = ?", entrepriseUUID).Find(&data)
 	return c.JSON(fiber.Map{
 		"status":  "success",
 		"message": "All fournisseurs",
@@ -121,7 +144,7 @@ func CreateFournisseur(c *fiber.Ctx) error {
 	}
 
 	p.UUID = utils.GenerateUUID()
- 
+
 	p.Sync = true
 
 	database.DB.Create(p)
@@ -152,7 +175,7 @@ func UpdateFournisseur(c *fiber.Ctx) error {
 		WebSite        string `json:"website"`
 		TypeFourniture string `json:"type_fourniture"`
 		Signature      string `json:"signature"`
-		CodeEntreprise uint64 `json:"code_entreprise"`
+		EntrepriseUUID string `json:"entreprise_uuid"`
 	}
 
 	var updateData UpdateData
@@ -180,7 +203,7 @@ func UpdateFournisseur(c *fiber.Ctx) error {
 	fournisseur.Manager = updateData.Manager
 	fournisseur.WebSite = updateData.WebSite
 	fournisseur.Signature = updateData.Signature
-	fournisseur.CodeEntreprise = updateData.CodeEntreprise
+	fournisseur.EntrepriseUUID = updateData.EntrepriseUUID
 
 	db.Save(&fournisseur)
 
@@ -228,7 +251,7 @@ func UploadCsvDataFournisseur(c *fiber.Ctx) error {
 
 	type UploadCSV struct {
 		Data           []models.Fournisseur `json:"data"`
-		CodeEntreprise uint64               `json:"code_entreprise"`
+		EntrepriseUUID string               `json:"entreprise_uuid"`
 		Signature      string               `json:"signature"`
 	}
 
@@ -251,7 +274,7 @@ func UploadCsvDataFournisseur(c *fiber.Ctx) error {
 			Manager:        fournisseur.Manager,
 			WebSite:        fournisseur.WebSite,
 			Signature:      dataUpload.Signature,
-			CodeEntreprise: dataUpload.CodeEntreprise,
+			EntrepriseUUID: dataUpload.EntrepriseUUID,
 		}
 		if fournisseur.EntrepriseName == "" {
 			continue
