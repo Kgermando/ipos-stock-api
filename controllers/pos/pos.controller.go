@@ -10,25 +10,6 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-// Synchronisation Send data to Local
-func GetDataSynchronisation(c *fiber.Ctx) error {
-	db := database.DB
-	entrepriseUUID := c.Params("entreprise_uuid")
-	posUUID := c.Params("pos_uuid")
-
-	sync_created := c.Query("sync_created", "2023-01-01") 
-
-	var data []models.Pos
-	db.Where("entreprise_uuid = ?", entrepriseUUID).
-		Where("pos_uuid = ?", posUUID).
-		Where("created_at > ?", sync_created).
-		Find(&data) 
-	return c.JSON(fiber.Map{
-		"status":  "success",
-		"message": "All Pos",
-		"data":    data,
-	})
-}
 
 // Paginate
 func GetPaginatedPos(c *fiber.Ctx) error {

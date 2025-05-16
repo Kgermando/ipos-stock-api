@@ -21,6 +21,7 @@ func GetDataSynchronisation(c *fiber.Ctx) error {
 	db.Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("pos_uuid = ?", posUUID).
 		Where("created_at > ?", sync_created).
+		Preload("Pos").
 		Find(&data) 
 	return c.JSON(fiber.Map{
 		"status":  "success",
