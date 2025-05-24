@@ -15,14 +15,14 @@ func GetDataSynchronisation(c *fiber.Ctx) error {
 	entrepriseUUID := c.Params("entreprise_uuid")
 	posUUID := c.Params("pos_uuid")
 
-	sync_created := c.Query("sync_created", "2023-01-01") 
+	sync_created := c.Query("sync_created", "2023-01-01")
 
 	var data []models.Product
 	db.Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("pos_uuid = ?", posUUID).
 		Where("created_at > ?", sync_created).
 		Preload("Pos").
-		Find(&data) 
+		Find(&data)
 	return c.JSON(fiber.Map{
 		"status":  "success",
 		"message": "All products",
@@ -253,7 +253,8 @@ func UpdateProduct(c *fiber.Ctx) error {
 		UniteVente     string  `json:"unite_vente"`
 		PrixVente      float64 `json:"prix_vente"`
 		Tva            float64 `json:"tva"`
-		Stock          float64 `json:"stock"` // stock disponible
+		PrixAchat      float64 `json:"prix_achat"`
+		Remise         float64 `json:"remise"` // remise en pourcentage
 		Signature      string  `json:"signature"`
 		PosUUID        string  `json:"pos_uuid"`
 		EntrepriseUUID string  `json:"entreprise_uuid"`
@@ -274,13 +275,15 @@ func UpdateProduct(c *fiber.Ctx) error {
 	product := new(models.Product)
 
 	db.Where("uuid = ?", uuid).First(&product)
+
 	product.Reference = updateData.Reference
 	product.Name = updateData.Name
 	product.Description = updateData.Description
 	product.UniteVente = updateData.UniteVente
 	product.PrixVente = updateData.PrixVente
 	product.Tva = updateData.Tva
-	product.Stock = updateData.Stock
+	product.PrixAchat = updateData.PrixAchat
+	product.Remise = updateData.Remise
 	// product.Image = updateData.Image
 	product.Signature = updateData.Signature
 	product.PosUUID = updateData.PosUUID

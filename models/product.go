@@ -17,6 +17,9 @@ type Product struct {
 	UniteVente     string  `json:"unite_vente"`
 	PrixVente      float64 `gorm:"not null" json:"prix_vente"`
 	Tva            float64 `gorm:"default:0" json:"tva"`
+	PrixAchat	  float64 `gorm:"default:0" json:"prix_achat"` 
+	Remise 	   float64 `gorm:"default:0" json:"remise"`         // remise en pourcentage
+
 	Stock          float64 `gorm:"default:0" json:"stock"`           // stock disponible
 	StockEndommage float64 `gorm:"default:0" json:"stock_endommage"` // stock endommage
 	Restitution    float64 `gorm:"default:0" json:"restitution"`     // stock restitution
