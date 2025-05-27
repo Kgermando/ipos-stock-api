@@ -11,7 +11,7 @@ import (
 	"github.com/kgermando/ipos-stock-api/controllers/pos"
 	"github.com/kgermando/ipos-stock-api/controllers/products"
 	"github.com/kgermando/ipos-stock-api/controllers/stocks"
-	"github.com/kgermando/ipos-stock-api/controllers/users"
+	"github.com/kgermando/ipos-stock-api/controllers/users" 
 
 	"github.com/gofiber/fiber/v2/middleware/logger"
 )
@@ -25,7 +25,7 @@ func Setup(app *fiber.App) {
 	a.Post("/register", auth.Register)
 	a.Post("/login", auth.Login)
 	a.Post("/forgot-password", auth.Forgot)
-	a.Post("/reset/:token", auth.ResetPassword)
+	a.Post("/reset/:token", auth.ResetPassword) 
 
 	a.Post("/entreprise", entreprises.CreateEntreprise)
 

@@ -29,22 +29,22 @@ type User struct {
 }
 
 type UserResponse struct {
-	ID         uint       `json:"id"`
-	UUID       string     `json:"uuid"`
-	Fullname   string     `json:"fullname"`
-	Email      string     `json:"email"`
-	Telephone  string     `json:"telephone"`
-	Role       string     `json:"role"`
-	Permission string     `json:"permission"`
-	Status     bool       `json:"status"`
-	Entreprise Entreprise `json:"entreprise"`
-	Pos        Pos        `json:"pos"`
+	ID             uint       `json:"id"`
+	UUID           string     `json:"uuid"`
+	Fullname       string     `json:"fullname"`
+	Email          string     `json:"email"`
+	Telephone      string     `json:"telephone"`
+	Role           string     `json:"role"`
+	Permission     string     `json:"permission"`
+	Status         bool       `json:"status"`
 	EntrepriseUUID string     `json:"entreprise_uuid"`
 	PosUUID        string     `json:"pos_uuid"`
-	Signature  string     `json:"signature"`
-	CreatedAt  time.Time  `json:"created_at"`
-	UpdatedAt  time.Time  `json:"updated_at"`
-	Sync       bool       `json:"sync"`
+	Entreprise     Entreprise `json:"entreprise"`
+	Pos            Pos        `json:"pos"`
+	Signature      string     `json:"signature"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+	Sync           bool       `json:"sync"`
 }
 
 type Login struct {
