@@ -9,21 +9,21 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-
 // Synchronisation Send data to Local
 func GetDataSynchronisationRestitution(c *fiber.Ctx) error {
 	db := database.DB
 	entrepriseUUID := c.Params("entreprise_uuid")
 	posUUID := c.Params("pos_uuid")
 
-	sync_created := c.Query("sync_created", "2023-01-01") 
+	sync_created := c.Query("sync_created", "2023-01-01")
 
 	var data []models.Restitution
 	db.Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("pos_uuid = ?", posUUID).
 		Where("created_at > ?", sync_created).
+		Order("restitutions.updated_at DESC").
 		Preload("Pos").
-		Find(&data) 
+		Find(&data)
 	return c.JSON(fiber.Map{
 		"status":  "success",
 		"message": "All Restitutions",
@@ -55,16 +55,16 @@ func GetPaginatedRestitution(c *fiber.Ctx) error {
 	// Count total records matching the search query
 	db.Model(&models.Restitution{}).
 		Where("product_uuid = ?", productUUID).
-		Joins("JOIN products ON stocks.product_uuid=products.uuid").
+		Joins("JOIN products ON restitutions.product_uuid=products.uuid").
 		Where("products.name ILIKE ? OR products.reference ILIKE ?", "%"+search+"%", "%"+search+"%").
 		Count(&totalRecords)
 
 	err = db.Where("product_uuid = ?", productUUID).
-		Joins("JOIN products ON stocks.product_uuid=products.uuid").
+		Joins("JOIN products ON restitutions.product_uuid=products.uuid").
 		Where("products.name ILIKE ? OR products.reference ILIKE ?", "%"+search+"%", "%"+search+"%").
 		Offset(offset).
 		Limit(limit).
-		Order("stocks.created_at DESC").
+		Order("restitutions.created_at DESC").
 		Preload("Product").
 		Find(&dataList).Error
 
@@ -212,6 +212,7 @@ func UpdateRestitution(c *fiber.Ctx) error {
 	restitution.Signature = updateData.Signature
 	restitution.EntrepriseUUID = updateData.EntrepriseUUID
 
+	restitution.Sync = true
 	db.Save(&restitution)
 
 	return c.JSON(

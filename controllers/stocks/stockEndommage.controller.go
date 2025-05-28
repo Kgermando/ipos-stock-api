@@ -21,6 +21,7 @@ func GetDataSynchronisationStockEndommage(c *fiber.Ctx) error {
 	db.Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("pos_uuid = ?", posUUID).
 		Where("created_at > ?", sync_created).
+		Order("updated_at DESC").
 		Preload("Pos").
 		Find(&data)
 	return c.JSON(fiber.Map{
@@ -54,18 +55,17 @@ func GetPaginatedStockEndommage(c *fiber.Ctx) error {
 	// Count total records matching the search query
 	db.Model(&models.StockEndommage{}).
 		Where("product_uuid = ?", productUUID).
-		Joins("JOIN products ON stocks.product_uuid=products.uuid").
+		Joins("JOIN products ON stock_endommages.product_uuid=products.uuid").
 		Where("products.name ILIKE ? OR products.reference ILIKE ?", "%"+search+"%", "%"+search+"%").
 		Count(&totalRecords)
 
 	err = db.Where("product_uuid = ?", productUUID).
-		Joins("JOIN products ON stocks.product_uuid=products.uuid").
+		Joins("JOIN products ON stock_endommages.product_uuid=products.uuid").
 		Where("products.name ILIKE ? OR products.reference ILIKE ?", "%"+search+"%", "%"+search+"%").
 		Offset(offset).
 		Limit(limit).
-		Order("stocks.created_at DESC").
-		Preload("Product").
-		Preload("Fournisseur").
+		Order("stock_endommages.created_at DESC").
+		Preload("Product"). 
 		Find(&dataList).Error
 
 	if err != nil {
@@ -210,6 +210,7 @@ func UpdateStockEndommage(c *fiber.Ctx) error {
 	stockEndommage.Signature = updateData.Signature
 	stockEndommage.EntrepriseUUID = updateData.EntrepriseUUID
 
+	stockEndommage.Sync = true
 	db.Save(&stockEndommage)
 
 	return c.JSON(

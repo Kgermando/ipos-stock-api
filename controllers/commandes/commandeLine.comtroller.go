@@ -230,6 +230,7 @@ func UpdateCommandeLine(c *fiber.Ctx) error {
 	commandeLine.Quantity = updateData.Quantity
 	commandeLine.EntrepriseUUID = updateData.EntrepriseUUID
 
+	commandeLine.Sync = true
 	db.Save(&commandeLine)
 
 	return c.JSON(

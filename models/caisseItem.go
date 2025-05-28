@@ -15,5 +15,7 @@ type CaisseItem struct {
 	Reference       string  `json:"reference"`                        // Nombre aleatoire
 	Signature       string  `json:"signature"`                        // Signature de la transaction
 	EntrepriseUUID  string  `json:"entreprise_uuid"`
+	PosUUID        string  `gorm:"type:varchar(255);not null" json:"pos_uuid"` // ID du point de vente
+	Pos            Pos     `gorm:"foreignKey:PosUUID;references:UUID"`         // Point de vente
 	Sync            bool    `gorm:"default:false" json:"sync"` // ID de l'entreprise
 }

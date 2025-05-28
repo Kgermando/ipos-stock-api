@@ -257,6 +257,7 @@ func UpdateCommande(c *fiber.Ctx) error {
 	commande.Signature = updateData.Signature
 	commande.EntrepriseUUID = updateData.EntrepriseUUID
 
+	commande.Sync = true
 	db.Save(&commande)
 
 	return c.JSON(

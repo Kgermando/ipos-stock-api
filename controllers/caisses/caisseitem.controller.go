@@ -21,6 +21,7 @@ func GetDataSynchronisationCaisseItem(c *fiber.Ctx) error {
 	db.Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("pos_uuid = ?", posUUID).
 		Where("created_at > ?", sync_created).
+		Order("caisse_items.updated_at DESC").
 		Preload("Pos").
 		Find(&data) 
 	return c.JSON(fiber.Map{
@@ -219,6 +220,7 @@ func UpdateCaisseItem(c *fiber.Ctx) error {
 	caisseItem.Signature = updateData.Signature
 	caisseItem.EntrepriseUUID = updateData.EntrepriseUUID
 
+	caisseItem.Sync = true // Set sync to true for synchronization
 	db.Save(&caisseItem)
 
 	return c.JSON(

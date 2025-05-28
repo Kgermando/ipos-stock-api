@@ -13,17 +13,18 @@ func GetDataSynchronisation(c *fiber.Ctx) error {
 	entrepriseUUID := c.Params("entreprise_uuid")
 	posUUID := c.Params("pos_uuid")
 
-	sync_created := c.Query("sync_created", "2023-01-01") 
+	sync_created := c.Query("sync_created", "2023-01-01")
 
-	var data []models.CaisseItem
+	var data []models.Caisse
 	db.Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("pos_uuid = ?", posUUID).
 		Where("created_at > ?", sync_created).
+		Order("caisses.updated_at DESC").
 		Preload("Pos").
-		Find(&data) 
+		Find(&data)
 	return c.JSON(fiber.Map{
 		"status":  "success",
-		"message": "All CaisseItems",
+		"message": "All Caisses",
 		"data":    data,
 	})
 }
@@ -39,6 +40,7 @@ func GetTotalAllCaisses(c *fiber.Ctx) error {
 	var total float64 = 0
 	var totalEntree float64 = 0
 	var totalSortie float64 = 0
+	var totalMontantDebut float64 = 0
 	var solde float64 = 0
 	var pourcent float64 = 0
 
@@ -48,6 +50,9 @@ func GetTotalAllCaisses(c *fiber.Ctx) error {
 		}
 		if item.TypeTransaction == "Sortie" {
 			totalSortie += item.Montant
+		}
+		if item.TypeTransaction == "MontantDebut" {
+			totalMontantDebut += item.Montant
 		}
 	}
 
@@ -61,6 +66,7 @@ func GetTotalAllCaisses(c *fiber.Ctx) error {
 		"totalsortie": totalSortie,
 		"solde":       solde,
 		"pourcent":    pourcent,
+		"montant_debut": totalMontantDebut,
 	}
 
 	return c.JSON(fiber.Map{
@@ -181,10 +187,12 @@ func UpdateCaisse(c *fiber.Ctx) error {
 	db := database.DB
 
 	type UpdateData struct {
-		Name           string `gorm:"not null" json:"name"` // Nom de la caisse
-		Signature      string `json:"signature"`            // Signature de la transaction
-		PosUUID        string `json:"pos_uuid"`             // ID du point de vente
-		EntrepriseUUID string `json:"entreprise_uuid"`      // ID de l'entreprise
+		Name           string  `json:"name"`            // Nom de la caisse
+		// Entree         float64 `json:"entree"`          // Montant d'entrée
+		// Sortie         float64 `json:"sortie"`          // Montant de sortie
+		Signature      string  `json:"signature"`       // Signature de la transaction
+		PosUUID        string  `json:"pos_uuid"`        // ID du point de vente
+		EntrepriseUUID string  `json:"entreprise_uuid"` // ID de l'entreprise
 	}
 
 	var updateData UpdateData
@@ -203,10 +211,13 @@ func UpdateCaisse(c *fiber.Ctx) error {
 
 	db.Where("uuid = ?", uuid).First(&caisse)
 	caisse.Name = updateData.Name
+	// caisse.Entree = updateData.Entree
+	// caisse.Sortie = updateData.Sortie
 	caisse.Signature = updateData.Signature
 	caisse.PosUUID = updateData.PosUUID
 	caisse.EntrepriseUUID = updateData.EntrepriseUUID
 
+	caisse.Sync = true
 	db.Save(&caisse)
 
 	return c.JSON(

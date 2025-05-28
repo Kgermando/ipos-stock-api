@@ -22,6 +22,7 @@ func GetDataSynchronisationStock(c *fiber.Ctx) error {
 	db.Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("pos_uuid = ?", posUUID).
 		Where("created_at > ?", sync_created).
+		Order("stocks.updated_at DESC").
 		Preload("Pos").
 		Find(&data) 
 	return c.JSON(fiber.Map{
@@ -230,6 +231,8 @@ func UpdateStock(c *fiber.Ctx) error {
 	stock.Signature = updateData.Signature
 	stock.EntrepriseUUID = updateData.EntrepriseUUID
 
+
+	stock.Sync = true
 	db.Save(&stock)
 
 	return c.JSON(

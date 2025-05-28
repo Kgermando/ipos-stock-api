@@ -23,7 +23,9 @@ func GetDataSynchronisation(c *fiber.Ctx) error {
 	var data []models.Fournisseur
 	db.Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("pos_uuid = ?", posUUID).
-		Where("created_at > ?", sync_created).
+		Where("created_at > ?", sync_created).  
+		Where("fournisseurs.deleted_at IS NULL").
+		Order("fournisseurs.updated_at DESC").
 		Preload("Pos").
 		Find(&data) 
 	return c.JSON(fiber.Map{
@@ -206,6 +208,7 @@ func UpdateFournisseur(c *fiber.Ctx) error {
 	fournisseur.Signature = updateData.Signature
 	fournisseur.EntrepriseUUID = updateData.EntrepriseUUID
 
+	fournisseur.Sync = true
 	db.Save(&fournisseur)
 
 	return c.JSON(
@@ -225,8 +228,8 @@ func DeleteFournisseur(c *fiber.Ctx) error {
 	db := database.DB
 
 	var fournisseur models.Fournisseur
-	db.Where("uuid = ?", uuid).First(&fournisseur)
-	if fournisseur.EntrepriseName == "" {
+	err := db.Where("uuid = ?", uuid).First(&fournisseur)
+	if err.Error != nil {
 		return c.Status(404).JSON(
 			fiber.Map{
 				"status":  "error",
@@ -235,6 +238,17 @@ func DeleteFournisseur(c *fiber.Ctx) error {
 			},
 		)
 	}
+
+	if fournisseur.UUID == "" {
+		return c.Status(404).JSON(
+			fiber.Map{
+				"status":  "error",
+				"message": "No fournisseur uuid found",
+				"data":    nil,
+			},
+		)
+	}
+	
 
 	db.Delete(&fournisseur)
 

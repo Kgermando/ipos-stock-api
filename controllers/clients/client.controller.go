@@ -24,6 +24,7 @@ func GetDataSynchronisation(c *fiber.Ctx) error {
 	db.Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("pos_uuid = ?", posUUID).
 		Where("created_at > ?", sync_created).
+		Order("clients.updated_at DESC").
 		Preload("Pos").
 		Find(&data) 
 	return c.JSON(fiber.Map{
@@ -274,6 +275,8 @@ func UploadCsvDataClient(c *fiber.Ctx) error {
 		if client.Fullname == "" {
 			continue
 		}
+
+		client.Sync = true
 		db.Create(&cl)
 	}
 
