@@ -183,7 +183,7 @@ func GetCommande(c *fiber.Ctx) error {
 	db.Where("uuid = ?", uuid).
 		Preload("CommandeLines").
 		First(&commande)
-	if commande.Ncommande == 0 {
+	if commande.Ncommande == "" {
 		return c.Status(404).JSON(
 			fiber.Map{
 				"status":  "error",
@@ -228,7 +228,7 @@ func UpdateCommande(c *fiber.Ctx) error {
 
 	type UpdateData struct {
 		PosUUID        string `json:"pos_uuid"`
-		Ncommande      uint64 `json:"ncommande"` // Number Random
+		Ncommande      string `json:"ncommande"` // Number Random
 		Status         string `json:"status"`    // Ouverte et Fermée
 		ClientUUID     string `json:"client_uuid"`
 		Signature      string `json:"signature"`
@@ -278,7 +278,7 @@ func DeleteCommande(c *fiber.Ctx) error {
 
 	var commande models.Commande
 	db.Where("uuid = ?", uuid).First(&commande)
-	if commande.Ncommande == 0 {
+	if commande.Ncommande == "" {
 		return c.Status(404).JSON(
 			fiber.Map{
 				"status":  "error",

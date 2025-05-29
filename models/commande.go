@@ -10,7 +10,7 @@ type Commande struct {
 	UUID           string  `gorm:"type:text;not null;unique" json:"uuid"` // Explicitly set type:text
 	PosUUID        string  `gorm:"type:varchar(255);not null" json:"pos_uuid"`
 	Pos            Pos     `gorm:"foreignKey:PosUUID;references:UUID"` // Point de vente
-	Ncommande      uint64  `gorm:"not null" json:"ncommande"`          // Number Random
+	Ncommande      string  `gorm:"not null" json:"ncommande"`          // Number Random
 	Status         string  `json:"status"`                             // Ouverte et Fermée
 	TotalHt        float64 `gorm:"not null" json:"total_ht"`           // Total amount excluding tax
 	TotalTva       float64 `gorm:"not null" json:"total_tva"`          // Total tax amount

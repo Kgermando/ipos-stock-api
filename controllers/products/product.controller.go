@@ -248,17 +248,18 @@ func UpdateProduct(c *fiber.Ctx) error {
 
 	type UpdateData struct {
 		// Image          string  `json:"image"`
-		Reference      string  `json:"reference"`
-		Name           string  `json:"name"`
-		Description    string  `json:"description"`
-		UniteVente     string  `json:"unite_vente"`
-		PrixVente      float64 `json:"prix_vente"`
-		Tva            float64 `json:"tva"`
-		PrixAchat      float64 `json:"prix_achat"`
-		Remise         float64 `json:"remise"` // remise en pourcentage
-		Signature      string  `json:"signature"`
-		PosUUID        string  `json:"pos_uuid"`
-		EntrepriseUUID string  `json:"entreprise_uuid"`
+		Reference         string  `json:"reference"`
+		Name              string  `json:"name"`
+		Description       string  `json:"description"`
+		UniteVente        string  `json:"unite_vente"`
+		PrixVente         float64 `json:"prix_vente"`
+		Tva               float64 `json:"tva"`
+		PrixAchat         float64 `json:"prix_achat"`
+		Remise            float64 `json:"remise"` // remise en pourcentage
+		RemiseMinQuantite float64 `json:"remise_min_quantite"`
+		Signature         string  `json:"signature"`
+		PosUUID           string  `json:"pos_uuid"`
+		EntrepriseUUID    string  `json:"entreprise_uuid"`
 	}
 
 	var updateData UpdateData
@@ -285,6 +286,7 @@ func UpdateProduct(c *fiber.Ctx) error {
 	product.Tva = updateData.Tva
 	product.PrixAchat = updateData.PrixAchat
 	product.Remise = updateData.Remise
+	product.RemiseMinQuantite = updateData.RemiseMinQuantite
 	// product.Image = updateData.Image
 	product.Signature = updateData.Signature
 	product.PosUUID = updateData.PosUUID
