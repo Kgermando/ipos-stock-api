@@ -255,8 +255,8 @@ func UpdateProduct(c *fiber.Ctx) error {
 		PrixVente         float64 `json:"prix_vente"`
 		Tva               float64 `json:"tva"`
 		PrixAchat         float64 `json:"prix_achat"`
-		Remise            float64 `json:"remise"` // remise en pourcentage
-		RemiseMinQuantite float64 `json:"remise_min_quantite"`
+		Remise            float64 `json:"remise"`                               // remise en pourcentage
+		RemiseMinQuantity float64 `gorm:"default:0" json:"remise_min_quantity"` // la quantite minimale pour la remise
 		Signature         string  `json:"signature"`
 		PosUUID           string  `json:"pos_uuid"`
 		EntrepriseUUID    string  `json:"entreprise_uuid"`
@@ -286,7 +286,7 @@ func UpdateProduct(c *fiber.Ctx) error {
 	product.Tva = updateData.Tva
 	product.PrixAchat = updateData.PrixAchat
 	product.Remise = updateData.Remise
-	product.RemiseMinQuantite = updateData.RemiseMinQuantite
+	product.RemiseMinQuantity = updateData.RemiseMinQuantity
 	// product.Image = updateData.Image
 	product.Signature = updateData.Signature
 	product.PosUUID = updateData.PosUUID

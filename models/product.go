@@ -19,7 +19,7 @@ type Product struct {
 	Tva               float64 `gorm:"default:0" json:"tva"`
 	PrixAchat         float64 `gorm:"default:0" json:"prix_achat"`
 	Remise            float64 `gorm:"default:0" json:"remise"`              // remise en pourcentage
-	RemiseMinQuantite float64 `gorm:"default:0" json:"remise_min_quantite"` // remise en pourcentage pour la quantite minimale
+	RemiseMinQuantity float64 `gorm:"default:0" json:"remise_min_quantity"` // remise en pourcentage pour la quantite minimale
 
 	Stock          float64 `gorm:"default:0" json:"stock"`           // stock disponible
 	StockEndommage float64 `gorm:"default:0" json:"stock_endommage"` // stock endommage
