@@ -31,6 +31,27 @@ func GetDataSynchronisationStockEndommage(c *fiber.Ctx) error {
 	})
 }
 
+// Get All data
+func GetAllByUUIDStockEndommages(c *fiber.Ctx) error {
+	db := database.DB
+	entrepriseUUID := c.Query("entreprise_uuid")
+	posUUID := c.Query("pos_uuid")
+
+	productUUID := c.Params("product_uuid")
+
+	var data []models.StockEndommage
+	db.
+	Where("entreprise_uuid = ?", entrepriseUUID).
+	Where("pos_uuid = ?", posUUID).
+	Where("product_uuid = ?", productUUID).
+	Find(&data)
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": "All stockEndommages",
+		"data":    data,
+	})
+}
+
 // Paginate
 func GetPaginatedStockEndommage(c *fiber.Ctx) error {
 	db := database.DB

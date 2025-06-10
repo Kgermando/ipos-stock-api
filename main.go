@@ -33,8 +33,8 @@ func main() {
 
 	// Middleware
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "https://mspos-v3.onrender.com/, http://localhost:4200, http://192.168.57.229:4200",
-		AllowHeaders:     "Origin, Content-Type, Accept",
+		AllowOrigins:     "http://localhost:4200, http://192.168.192.229:4200",
+		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, Expires, Cache-Control, Pragma",
 		AllowCredentials: true,
 		AllowMethods: strings.Join([]string{
 			fiber.MethodGet,
