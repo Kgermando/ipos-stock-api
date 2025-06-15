@@ -1,0 +1,15 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Build Go API",
+			"type": "shell",
+			"command": "go build -o ipos-stock-api.exe .",
+			"group": "build",
+			"isBackground": false,
+			"problemMatcher": [
+				"$go"
+			]
+		}
+	]
+}

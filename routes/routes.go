@@ -6,12 +6,13 @@ import (
 	"github.com/kgermando/ipos-stock-api/controllers/caisses"
 	"github.com/kgermando/ipos-stock-api/controllers/clients"
 	"github.com/kgermando/ipos-stock-api/controllers/commandes"
+	"github.com/kgermando/ipos-stock-api/controllers/dashboard"
 	"github.com/kgermando/ipos-stock-api/controllers/entreprises"
 	"github.com/kgermando/ipos-stock-api/controllers/fournisseurs"
 	"github.com/kgermando/ipos-stock-api/controllers/pos"
 	"github.com/kgermando/ipos-stock-api/controllers/products"
 	"github.com/kgermando/ipos-stock-api/controllers/stocks"
-	"github.com/kgermando/ipos-stock-api/controllers/users" 
+	"github.com/kgermando/ipos-stock-api/controllers/users"
 
 	"github.com/gofiber/fiber/v2/middleware/logger"
 )
@@ -25,7 +26,7 @@ func Setup(app *fiber.App) {
 	a.Post("/register", auth.Register)
 	a.Post("/login", auth.Login)
 	a.Post("/forgot-password", auth.Forgot)
-	a.Post("/reset/:token", auth.ResetPassword) 
+	a.Post("/reset/:token", auth.ResetPassword)
 
 	a.Post("/entreprise", entreprises.CreateEntreprise)
 
@@ -49,7 +50,7 @@ func Setup(app *fiber.App) {
 	u := api.Group("/users")
 	u.Get("/all", users.GetAllUsers)
 	u.Get("/all/paginate/nosearch", users.GetPaginatedNoSerach)
-	u.Get("/:entreprise_uuid/all/paginate", users.GetPaginatedUsers) 
+	u.Get("/:entreprise_uuid/all/paginate", users.GetPaginatedUsers)
 	u.Get("/:entreprise_uuid/:pos_uuid/all/paginate", users.GetPaginatedUserByPosUUID)
 	u.Get("/get/:uuid", users.GetUser)
 	u.Post("/create", users.CreateUser)
@@ -180,4 +181,36 @@ func Setup(app *fiber.App) {
 	cmdl.Post("/create", commandes.CreateCommandeLine)
 	cmdl.Put("/update/:uuid", commandes.UpdateCommandeLine)
 	cmdl.Delete("/delete/:uuid", commandes.DeleteCommandeLine)
+	// Dashboard
+	// Tresorerie - Nouveau système complet de dashboard
+	dash := api.Group("/dashboard")
+
+	tresorerie := dash.Group("/tresoreries")
+	// Endpoint principal pour récupérer toutes les données du dashboard
+	tresorerie.Get("/", dashboard.GetDashboardTresorerie)
+
+	// Endpoints pour les graphiques
+	tresorerie.Get("/evolution-chart", dashboard.GetEvolutionChartData)
+	tresorerie.Get("/repartition-chart", dashboard.GetRepartitionChartData)
+	// Endpoints complémentaires
+	tresorerie.Get("/financial-summary", dashboard.GetFinancialSummary)
+	tresorerie.Get("/top-caisses", dashboard.GetTopCaisses)
+	tresorerie.Get("/alerts-recommendations", dashboard.GetAlertsAndRecommendations)
+
+	// KPI Dashboard - Nouveaux endpoints améliorés
+	kpi := dash.Group("/kpi")
+	
+	// Endpoints principaux pour le frontend Angular
+	kpi.Get("/global-kpis", dashboard.GlobalKpis)
+	kpi.Get("/evolution-vente", dashboard.GetEvolutionVente)
+	kpi.Get("/performance-vente", dashboard.GetPerformanceVente)
+	kpi.Get("/best-selling-product", dashboard.GetBestSellingProduct)
+	kpi.Get("/stock-kpis", dashboard.GetStockKpis)
+	kpi.Get("/stock-faible", dashboard.GetStockFaible)
+	kpi.Get("/stock-chart", dashboard.SetupStockChart)
+	
+	// Endpoints legacy pour compatibilité
+	kpi.Get("/global", dashboard.GlobalKpiSummary)
+	kpi.Get("/best-selling-prroduct", dashboard.BestSellingProduct)
+
 }

@@ -9,7 +9,7 @@ type CaisseItem struct {
 	CaisseUUID string `gorm:"type:varchar(255);not null" json:"caisse_uuid"`
 	Caisse     Caisse `gorm:"foreignKey:CaisseUUID;references:UUID"` // Caisse associée
 
-	TypeTransaction string  `gorm:"not null" json:"type_transaction"` // Entrée ou Sortie
+	TypeTransaction string  `gorm:"not null" json:"type_transaction"` // Entrée ou Sortie fond de Caisse
 	Montant         float64 `gorm:"not null" json:"montant"`          // Montant de la transaction
 	Libelle         string  `json:"libelle"`                          // Description de la transaction
 	Reference       string  `json:"reference"`                        // Nombre aleatoire
