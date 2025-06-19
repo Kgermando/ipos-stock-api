@@ -1,30 +1,31 @@
 package models
 
 import (
-
+	"time"
 	// "github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
 type Entreprise struct {
-	gorm.Model
-
-	UUID           string `gorm:"type:text;not null;unique" json:"uuid"` // Explicitly set type:text
-	TypeEntreprise string `gorm:"not null" json:"type_entreprise"`       // PME, GE, Particulier
-	Name           string `gorm:"not null" json:"name"`
-	Code           uint64 `gorm:"not null" json:"code"` // Code entreprise
-	Rccm           string `json:"rccm"`
-	IdNat          string `json:"idnat"`
-	NImpot         string `json:"nimpot"`
-	Adresse        string `json:"adresse"`
-	Email          string `json:"email"`                     // Email officiel
-	Telephone      string `gorm:"not null" json:"telephone"` // Telephone officiel
-	Manager        string `gorm:"not null" json:"manager"`
-	Status         bool   `gorm:"not null" json:"status"`
-	Currency       string `gorm:"not null;default:CDF" json:"currency"` // Devise de l'entreprise, default CDF
-	TypeAbonnement string `json:"type_abonnement"`
-	Signature      string `json:"signature"`
-	Sync           bool   `gorm:"default:false" json:"sync"`
+	UUID           string         `gorm:"type:varchar(255);primary_key" json:"uuid"`
+	CreatedAt      time.Time      `json:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at"`
+	DeletedAt      gorm.DeletedAt `gorm:"index" json:"deleted_at"`
+	TypeEntreprise string         `gorm:"not null" json:"type_entreprise"` // PME, GE, Particulier
+	Name           string         `gorm:"not null" json:"name"`
+	Code           uint64         `gorm:"not null" json:"code"` // Code entreprise
+	Rccm           string         `json:"rccm"`
+	IdNat          string         `json:"idnat"`
+	NImpot         string         `json:"nimpot"`
+	Adresse        string         `json:"adresse"`
+	Email          string         `json:"email"`                     // Email officiel
+	Telephone      string         `gorm:"not null" json:"telephone"` // Telephone officiel
+	Manager        string         `gorm:"not null" json:"manager"`
+	Status         bool           `gorm:"not null" json:"status"`
+	Currency       string         `gorm:"not null;default:CDF" json:"currency"` // Devise de l'entreprise, default CDF
+	TypeAbonnement string         `json:"type_abonnement"`
+	Signature      string         `json:"signature"`
+	Sync           bool           `gorm:"default:false" json:"sync"`
 
 	Users      []User       `gorm:"foreignKey:EntrepriseUUID;references:UUID"` // Liste des utilisateurs de l'entreprise
 	Pos        []Pos        `gorm:"foreignKey:EntrepriseUUID;references:UUID"` // Liste des utilisateurs de l'entreprise
@@ -32,7 +33,6 @@ type Entreprise struct {
 }
 
 type EntrepriseInfos struct {
-	ID              uint   `json:"id"`
 	UUID            string `json:"uuid"`            // Explicitly set type:text
 	TypeEntreprise  string `json:"type_entreprise"` // PME, GE, Particulier
 	Name            string `json:"name"`

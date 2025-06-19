@@ -1,11 +1,16 @@
 package models
 
-import "gorm.io/gorm"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type Caisse struct {
-	gorm.Model
-
-	UUID string `gorm:"type:text;not null;unique" json:"uuid"` // Explicitly set type:text
+	UUID      string         `gorm:"type:varchar(255);primary_key" json:"uuid"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
 
 	Name           string  `gorm:"not null" json:"name"`                       // Nom de la caisse
 	MontantEntre   float64 `gorm:"default:0" json:"montant_entre"`             // Montant d'entrée

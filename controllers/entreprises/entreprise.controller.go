@@ -66,7 +66,6 @@ func GetPaginatedEntreprise(c *fiber.Ctx) error {
 	var entrepriseInfos []models.EntrepriseInfos
 	for _, entreprise := range dataList {
 		entrepriseInfos = append(entrepriseInfos, models.EntrepriseInfos{
-			ID:              entreprise.ID,
 			UUID:            entreprise.UUID,
 			TypeEntreprise:  entreprise.TypeEntreprise,
 			Name:            entreprise.Name,
@@ -110,7 +109,7 @@ func GetAllEntreprises(c *fiber.Ctx) error {
 func GetEntreprise(c *fiber.Ctx) error {
 	uuid := c.Params("uuid")
 	db := database.DB
-	
+
 	var entreprise models.Entreprise
 
 	db.Where("uuid = ?", uuid).

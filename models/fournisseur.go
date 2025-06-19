@@ -1,21 +1,26 @@
 package models
 
-import "gorm.io/gorm"
+import (
+	"time"
+
+	"gorm.io/gorm"
+)
 
 type Fournisseur struct {
-	gorm.Model
-
-	UUID           string `gorm:"type:text;not null;unique" json:"uuid"` // Explicitly set type:text
-	EntrepriseName string `gorm:"not null" json:"entreprise_name"`
-	Rccm           string `json:"rccm"`
-	IdNat          string `json:"idnat"`
-	NImpot         string `json:"nimpot"`
-	Adresse        string `json:"adresse"`
-	Email          string `json:"email"`                     // Email officiel
-	Telephone      string `gorm:"not null" json:"telephone"` // Telephone officiel
-	Manager        string `gorm:"not null" json:"manager"`
-	WebSite        string `json:"website"`
-	TypeFourniture string `json:"type_fourniture"`
+	UUID           string         `gorm:"type:varchar(255);primary_key" json:"uuid"`
+	CreatedAt      time.Time      `json:"created_at"`
+	UpdatedAt      time.Time      `json:"updated_at"`
+	DeletedAt      gorm.DeletedAt `gorm:"index" json:"deleted_at"`
+	EntrepriseName string         `gorm:"not null" json:"entreprise_name"`
+	Rccm           string         `json:"rccm"`
+	IdNat          string         `json:"idnat"`
+	NImpot         string         `json:"nimpot"`
+	Adresse        string         `json:"adresse"`
+	Email          string         `json:"email"`                     // Email officiel
+	Telephone      string         `gorm:"not null" json:"telephone"` // Telephone officiel
+	Manager        string         `gorm:"not null" json:"manager"`
+	WebSite        string         `json:"website"`
+	TypeFourniture string         `json:"type_fourniture"`
 
 	Signature      string `json:"signature"`
 	EntrepriseUUID string `json:"entreprise_uuid"`

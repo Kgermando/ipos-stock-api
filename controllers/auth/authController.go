@@ -131,9 +131,7 @@ func AuthUser(c *fiber.Ctx) error {
 		Preload("Entreprise").
 		Preload("Pos").
 		First(&u)
-
 	r := &models.UserResponse{
-		ID:             u.ID,
 		UUID:           u.UUID,
 		Fullname:       u.Fullname,
 		Email:          u.Email,
@@ -256,8 +254,7 @@ func ChangePassword(c *fiber.Ctx) error {
 	}
 
 	db := database.DB
-
-	db.First(&user, user.ID)
+	db.Where("uuid = ?", user.UUID).First(&user)
 	user.Password = p
 
 	db.Save(&user)

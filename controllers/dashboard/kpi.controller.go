@@ -630,7 +630,7 @@ func SetupStockChart(c *fiber.Ctx) error {
 		FROM products 
 		WHERE entreprise_uuid = ? AND deleted_at IS NULL
 	`
-
+ 
 	args := []interface{}{entrepriseUUID}
 	if posUUID != "" && posUUID != "null" {
 		query += " AND pos_uuid = ?"

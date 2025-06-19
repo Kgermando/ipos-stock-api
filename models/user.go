@@ -8,9 +8,10 @@ import (
 )
 
 type User struct {
-	gorm.Model
-
-	UUID string `gorm:"type:text;not null;unique" json:"uuid"` // Explicitly set type:text
+	UUID      string         `gorm:"type:varchar(255);primary_key" json:"uuid"`
+	CreatedAt time.Time      `json:"created_at"`
+	UpdatedAt time.Time      `json:"updated_at"`
+	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
 
 	Fullname        string     `gorm:"not null" json:"fullname"`
 	Email           string     `gorm:"unique; not null" json:"email"`
@@ -29,7 +30,6 @@ type User struct {
 }
 
 type UserResponse struct {
-	ID             uint       `json:"id"`
 	UUID           string     `json:"uuid"`
 	Fullname       string     `json:"fullname"`
 	Email          string     `json:"email"`

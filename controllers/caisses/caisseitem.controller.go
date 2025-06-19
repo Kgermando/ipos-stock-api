@@ -22,6 +22,7 @@ func GetDataSynchronisationCaisseItem(c *fiber.Ctx) error {
 		Where("pos_uuid = ?", posUUID).
 		Where("created_at > ?", sync_created).
 		Order("caisse_items.updated_at DESC").
+		Preload("Caisse").
 		Preload("Pos").
 		Find(&data) 
 	return c.JSON(fiber.Map{

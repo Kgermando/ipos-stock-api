@@ -4,10 +4,10 @@ import (
 	"net/smtp"
 	"time"
 
-	"github.com/kgermando/ipos-stock-api/database" 
+	"github.com/kgermando/ipos-stock-api/database"
 	"github.com/kgermando/ipos-stock-api/models"
 	"github.com/kgermando/ipos-stock-api/utils"
-	
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/subosito/gotenv"
 	"golang.org/x/crypto/bcrypt"
@@ -32,8 +32,7 @@ func Forgot(c *fiber.Ctx) error {
 	um := &models.User{}
 
 	database.DB.Where("email = ?", u.Email).First(um)
-
-	if um.ID == 0 {
+	if um.UUID == "" {
 		c.Status(400)
 		return c.JSON(fiber.Map{
 			"message": "invalid email address 😰",
