@@ -16,7 +16,7 @@ func GetDataSynchronisation(c *fiber.Ctx) error {
 	sync_created := c.Query("sync_created", "2023-01-01")
 
 	var data []models.Caisse
-	db.Where("entreprise_uuid = ?", entrepriseUUID).
+	db.Unscoped().Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("pos_uuid = ?", posUUID).
 		Where("created_at > ?", sync_created).
 		Order("caisses.updated_at DESC").

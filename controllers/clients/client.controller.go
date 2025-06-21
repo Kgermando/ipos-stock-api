@@ -18,15 +18,14 @@ func GetDataSynchronisation(c *fiber.Ctx) error {
 	entrepriseUUID := c.Params("entreprise_uuid")
 	posUUID := c.Params("pos_uuid")
 
-	sync_created := c.Query("sync_created", "2023-01-01") 
-
+	sync_created := c.Query("sync_created", "2023-01-01")
 	var data []models.Client
-	db.Where("entreprise_uuid = ?", entrepriseUUID).
+	db.Unscoped().Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("pos_uuid = ?", posUUID).
 		Where("created_at > ?", sync_created).
 		Order("clients.updated_at DESC").
 		Preload("Pos").
-		Find(&data) 
+		Find(&data)
 	return c.JSON(fiber.Map{
 		"status":  "success",
 		"message": "All Clients",

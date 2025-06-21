@@ -7,10 +7,10 @@ import (
 )
 
 type CaisseItem struct {
-	UUID       string         `gorm:"type:varchar(255);primary_key" json:"uuid"`
-	CreatedAt  time.Time      `json:"created_at"`
-	UpdatedAt  time.Time      `json:"updated_at"`
-	DeletedAt  gorm.DeletedAt `gorm:"index" json:"deleted_at"`
+	UUID       string `gorm:"type:varchar(255);primary_key" json:"uuid"`
+	CreatedAt  time.Time
+	UpdatedAt  time.Time
+	DeletedAt  gorm.DeletedAt `gorm:"index"`
 	CaisseUUID string         `gorm:"type:varchar(255);not null" json:"caisse_uuid"`
 	Caisse     Caisse         `gorm:"foreignKey:CaisseUUID;references:UUID"` // Caisse associée
 

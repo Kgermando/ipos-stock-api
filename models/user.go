@@ -8,10 +8,10 @@ import (
 )
 
 type User struct {
-	UUID      string         `gorm:"type:varchar(255);primary_key" json:"uuid"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
+	UUID      string `gorm:"type:varchar(255);primary_key" json:"uuid"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index"`
 
 	Fullname        string     `gorm:"not null" json:"fullname"`
 	Email           string     `gorm:"unique; not null" json:"email"`
@@ -42,9 +42,9 @@ type UserResponse struct {
 	Entreprise     Entreprise `json:"entreprise"`
 	Pos            Pos        `json:"pos"`
 	Signature      string     `json:"signature"`
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
-	Sync           bool       `json:"sync"`
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	Sync           bool `json:"sync"`
 }
 
 type Login struct {

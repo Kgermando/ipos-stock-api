@@ -16,15 +16,14 @@ func GetDataSynchronisationStock(c *fiber.Ctx) error {
 	entrepriseUUID := c.Params("entreprise_uuid")
 	posUUID := c.Params("pos_uuid")
 
-	sync_created := c.Query("sync_created", "2023-01-01") 
-
+	sync_created := c.Query("sync_created", "2023-01-01")
 	var data []models.Stock
-	db.Where("entreprise_uuid = ?", entrepriseUUID).
+	db.Unscoped().Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("pos_uuid = ?", posUUID).
 		Where("created_at > ?", sync_created).
 		Order("stocks.updated_at DESC").
 		Preload("Pos").
-		Find(&data) 
+		Find(&data)
 	return c.JSON(fiber.Map{
 		"status":  "success",
 		"message": "All Stocks",
@@ -230,7 +229,6 @@ func UpdateStock(c *fiber.Ctx) error {
 	stock.DateExpiration = updateData.DateExpiration
 	stock.Signature = updateData.Signature
 	stock.EntrepriseUUID = updateData.EntrepriseUUID
-
 
 	stock.Sync = true
 	db.Save(&stock)

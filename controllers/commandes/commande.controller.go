@@ -15,14 +15,13 @@ func GetDataSynchronisation(c *fiber.Ctx) error {
 	entrepriseUUID := c.Params("entreprise_uuid")
 	posUUID := c.Params("pos_uuid")
 
-	sync_created := c.Query("sync_created", "2023-01-01") 
-
+	sync_created := c.Query("sync_created", "2023-01-01")
 	var data []models.Commande
-	db.Where("entreprise_uuid = ?", entrepriseUUID).
+	db.Unscoped().Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("pos_uuid = ?", posUUID).
 		Where("created_at > ?", sync_created).
 		Preload("Pos").
-		Find(&data) 
+		Find(&data)
 	return c.JSON(fiber.Map{
 		"status":  "success",
 		"message": "All Commandes",
@@ -120,7 +119,7 @@ func GetPaginatedCommandePOS(c *fiber.Ctx) error {
 		Count(&totalRecords)
 
 	err = db.Where("entreprise_uuid = ?", entrepriseUUID).
-	Where("pos_uuid = ?", posUUID).
+		Where("pos_uuid = ?", posUUID).
 		Where("ncommande::TEXT ILIKE ? OR status ILIKE ?", "%"+search+"%", "%"+search+"%").
 		Offset(offset).
 		Limit(limit).
@@ -154,7 +153,6 @@ func GetPaginatedCommandePOS(c *fiber.Ctx) error {
 		"pagination": pagination,
 	})
 }
-
 
 // Get All data
 func GetAllCommandes(c *fiber.Ctx) error {

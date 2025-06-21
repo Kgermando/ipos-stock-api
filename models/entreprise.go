@@ -7,10 +7,10 @@ import (
 )
 
 type Entreprise struct {
-	UUID           string         `gorm:"type:varchar(255);primary_key" json:"uuid"`
-	CreatedAt      time.Time      `json:"created_at"`
-	UpdatedAt      time.Time      `json:"updated_at"`
-	DeletedAt      gorm.DeletedAt `gorm:"index" json:"deleted_at"`
+	UUID           string `gorm:"type:varchar(255);primary_key" json:"uuid"`
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	DeletedAt      gorm.DeletedAt `gorm:"index"`
 	TypeEntreprise string         `gorm:"not null" json:"type_entreprise"` // PME, GE, Particulier
 	Name           string         `gorm:"not null" json:"name"`
 	Code           uint64         `gorm:"not null" json:"code"` // Code entreprise

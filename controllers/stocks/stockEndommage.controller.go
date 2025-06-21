@@ -16,9 +16,8 @@ func GetDataSynchronisationStockEndommage(c *fiber.Ctx) error {
 	posUUID := c.Params("pos_uuid")
 
 	sync_created := c.Query("sync_created", "2023-01-01")
-
 	var data []models.StockEndommage
-	db.Where("entreprise_uuid = ?", entrepriseUUID).
+	db.Unscoped().Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("pos_uuid = ?", posUUID).
 		Where("created_at > ?", sync_created).
 		Order("updated_at DESC").
@@ -41,10 +40,10 @@ func GetAllByUUIDStockEndommages(c *fiber.Ctx) error {
 
 	var data []models.StockEndommage
 	db.
-	Where("entreprise_uuid = ?", entrepriseUUID).
-	Where("pos_uuid = ?", posUUID).
-	Where("product_uuid = ?", productUUID).
-	Find(&data)
+		Where("entreprise_uuid = ?", entrepriseUUID).
+		Where("pos_uuid = ?", posUUID).
+		Where("product_uuid = ?", productUUID).
+		Find(&data)
 	return c.JSON(fiber.Map{
 		"status":  "success",
 		"message": "All stockEndommages",
@@ -86,7 +85,7 @@ func GetPaginatedStockEndommage(c *fiber.Ctx) error {
 		Offset(offset).
 		Limit(limit).
 		Order("stock_endommages.created_at DESC").
-		Preload("Product"). 
+		Preload("Product").
 		Find(&dataList).Error
 
 	if err != nil {

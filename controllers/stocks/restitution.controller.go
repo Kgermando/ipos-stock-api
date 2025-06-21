@@ -16,9 +16,8 @@ func GetDataSynchronisationRestitution(c *fiber.Ctx) error {
 	posUUID := c.Params("pos_uuid")
 
 	sync_created := c.Query("sync_created", "2023-01-01")
-
 	var data []models.Restitution
-	db.Where("entreprise_uuid = ?", entrepriseUUID).
+	db.Unscoped().Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("pos_uuid = ?", posUUID).
 		Where("created_at > ?", sync_created).
 		Order("restitutions.updated_at DESC").

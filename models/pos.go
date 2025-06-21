@@ -7,10 +7,10 @@ import (
 )
 
 type Pos struct {
-	UUID           string         `gorm:"type:varchar(255);primary_key" json:"uuid"`
-	CreatedAt      time.Time      `json:"created_at"`
-	UpdatedAt      time.Time      `json:"updated_at"`
-	DeletedAt      gorm.DeletedAt `gorm:"index" json:"deleted_at"`
+	UUID           string `gorm:"type:varchar(255);primary_key" json:"uuid"`
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	DeletedAt      gorm.DeletedAt `gorm:"index"`
 	EntrepriseUUID string         `gorm:"type:varchar(255);not null" json:"entreprise_uuid"`
 	Entreprise     Entreprise     `gorm:"foreignKey:EntrepriseUUID;references:UUID"`
 	Name           string         `gorm:"not null" json:"name"`

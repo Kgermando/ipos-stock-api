@@ -7,10 +7,10 @@ import (
 )
 
 type StockEndommage struct {
-	UUID      string         `gorm:"type:varchar(255);primary_key" json:"uuid"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
+	UUID      string `gorm:"type:varchar(255);primary_key" json:"uuid"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index"`
 	PosUUID   string         `gorm:"type:varchar(255);not null" json:"pos_uuid"`
 	Pos       Pos            `gorm:"foreignKey:PosUUID;references:UUID"` // Point de vente
 	// Reference      uint64  `gorm:"not null" json:"reference"`          // Numero de reference du ravitaillement pour retrouver dans quel revitaillement le produit est endommagE

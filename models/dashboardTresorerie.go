@@ -102,9 +102,9 @@ type Tresorerie struct {
 
 // Structure pour les données de trésorerie par date
 type TresorerieDateData struct {
-	CreatedAt time.Time `json:"created_at"`
-	Entrees   float64   `json:"entrees"`
-	Sorties   float64   `json:"sorties"`
+	CreatedAt time.Time
+	Entrees   float64 `json:"entrees"`
+	Sorties   float64 `json:"sorties"`
 }
 
 // Structure pour les données de trésorerie par mois

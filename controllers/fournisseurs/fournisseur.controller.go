@@ -18,16 +18,15 @@ func GetDataSynchronisation(c *fiber.Ctx) error {
 	entrepriseUUID := c.Params("entreprise_uuid")
 	posUUID := c.Params("pos_uuid")
 
-	sync_created := c.Query("sync_created", "2023-01-01") 
-
+	sync_created := c.Query("sync_created", "2023-01-01")
 	var data []models.Fournisseur
-	db.Where("entreprise_uuid = ?", entrepriseUUID).
+	db.Unscoped().Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("pos_uuid = ?", posUUID).
-		Where("created_at > ?", sync_created).  
+		Where("created_at > ?", sync_created).
 		Where("fournisseurs.deleted_at IS NULL").
 		Order("fournisseurs.updated_at DESC").
 		Preload("Pos").
-		Find(&data) 
+		Find(&data)
 	return c.JSON(fiber.Map{
 		"status":  "success",
 		"message": "All Fournisseur",
@@ -248,7 +247,6 @@ func DeleteFournisseur(c *fiber.Ctx) error {
 			},
 		)
 	}
-	
 
 	db.Delete(&fournisseur)
 

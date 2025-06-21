@@ -7,10 +7,10 @@ import (
 )
 
 type Caisse struct {
-	UUID      string         `gorm:"type:varchar(255);primary_key" json:"uuid"`
-	CreatedAt time.Time      `json:"created_at"`
-	UpdatedAt time.Time      `json:"updated_at"`
-	DeletedAt gorm.DeletedAt `gorm:"index" json:"deleted_at"`
+	UUID      string `gorm:"type:varchar(255);primary_key" json:"uuid"`
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index"`
 
 	Name           string  `gorm:"not null" json:"name"`                       // Nom de la caisse
 	MontantEntre   float64 `gorm:"default:0" json:"montant_entre"`             // Montant d'entrée

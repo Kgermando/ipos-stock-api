@@ -7,10 +7,10 @@ import (
 )
 
 type CommandeLine struct {
-	UUID           string         `gorm:"type:varchar(255);primary_key" json:"uuid"`
-	CreatedAt      time.Time      `json:"created_at"`
-	UpdatedAt      time.Time      `json:"updated_at"`
-	DeletedAt      gorm.DeletedAt `gorm:"index" json:"deleted_at"`
+	UUID           string `gorm:"type:varchar(255);primary_key" json:"uuid"`
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	DeletedAt      gorm.DeletedAt `gorm:"index"`
 	CommandeUUID   string         `gorm:"type:varchar(255);not null" json:"commande_uuid"`
 	Commande       Commande       `gorm:"foreignKey:CommandeUUID;references:UUID"` // Commande associée
 	ProductUUID    string         `gorm:"type:varchar(255);not null" json:"product_uuid"`
