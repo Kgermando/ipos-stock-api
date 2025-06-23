@@ -117,6 +117,7 @@ func GlobalKpis(c *fiber.Ctx) error {
 	var totalCommandes, totalCommandesYesterday int64
 	var totalProduits int64
 	var averageOrderValue, averageOrderValueYesterday float64
+
 	// Calculs pour aujourd'hui/période actuelle
 	// Requête séparée pour le revenu total (éviter les doublons)
 	revenueQuery := `
@@ -227,12 +228,38 @@ func GlobalKpis(c *fiber.Ctx) error {
 	err = db.Raw(productQuery, productArgsYesterday...).Row().Scan(&totalProduitsYesterday)
 	if err != nil {
 		totalProduitsYesterday = 0
-	}
-	// Calcul des variations en pourcentage
+	} // Calcul des variations en pourcentage
 	revenueVariation := calculateVariationKPI(totalRevenue, totalRevenueYesterday)
 	commandesVariation := calculateVariationKPI(float64(totalCommandes), float64(totalCommandesYesterday))
 	averageOrderVariation := calculateVariationKPI(averageOrderValue, averageOrderValueYesterday)
 	totalProduitsVariation := calculateVariationKPI(float64(totalProduits), float64(totalProduitsYesterday))
+
+	// Calcul de la valeur totale du stock et de la marge bénéficiaire totale potentielle (sans filtre de dates)
+	var valeurTotaleStock, margeBeneficiaireTotale float64
+
+	stockValueQuery := `
+		SELECT 
+			COALESCE(SUM(stocks.quantity - stock_endommages.quantity - commande_lines.quantity * prix_vente), 0) as valeur_totale_stock,
+			COALESCE(SUM((stocks.quantity - stock_endommages.quantity - commande_lines.quantity) * (prix_vente - prix_achat)), 0) as marge_beneficiaire_totale
+		FROM products 
+		LEFT JOIN stocks ON products.uuid = stocks.product_uuid
+		LEFT JOIN stock_endommages ON products.uuid = stock_endommages.product_uuid
+		LEFT JOIN commande_lines ON products.uuid = commande_lines.product_uuid
+		WHERE products.entreprise_uuid = ? AND products.deleted_at IS NULL
+	`
+
+	stockValueArgs := []interface{}{entrepriseUUID}
+	if posUUID != "" && posUUID != "null" {
+		stockValueQuery += " AND products.pos_uuid = ?"
+		stockValueArgs = append(stockValueArgs, posUUID)
+	}
+
+	err = db.Raw(stockValueQuery, stockValueArgs...).Row().Scan(&valeurTotaleStock, &margeBeneficiaireTotale)
+	if err != nil {
+		// Si erreur, on continue avec des valeurs par défaut
+		valeurTotaleStock = 0
+		margeBeneficiaireTotale = 0
+	}
 
 	globalKpis := map[string]interface{}{
 		"totalRevenue":               totalRevenue,
@@ -246,6 +273,8 @@ func GlobalKpis(c *fiber.Ctx) error {
 		"margeBeneficiaire":          margeBeneficiaire,
 		"margeBeneficiaireVariation": margeBeneficiaireVariation,
 		"pourcentageMarge":           pourcentageMarge,
+		"valeurTotaleStock":          valeurTotaleStock,
+		"margeBeneficiaireTotale":    margeBeneficiaireTotale,
 	}
 
 	return c.JSON(fiber.Map{
@@ -464,15 +493,19 @@ func GetPerformanceVente(c *fiber.Ctx) error {
 	var totalStock, stockEndommage, stockRestitution float64
 	stockQuery := `
 		SELECT 
-			COALESCE(SUM(stock), 0) as total_stock,
-			COALESCE(SUM(stock_endommage), 0) as stock_endommage,
-			COALESCE(SUM(restitution), 0) as stock_restitution
+			COALESCE(SUM(stocks.quantity - stock_endommages.quantity - commande_lines.quantity), 0) as total_stock,
+			COALESCE(SUM(stock_endommages.quantity), 0) as stock_endommage,
+			COALESCE(SUM(restitutions.quantity), 0) as stock_restitution
 		FROM products 
-		WHERE entreprise_uuid = ? AND deleted_at IS NULL
+		LEFT JOIN stocks ON products.uuid = stocks.product_uuid
+		LEFT JOIN stock_endommages ON products.uuid = stock_endommages.product_uuid
+		LEFT JOIN restitutions ON products.uuid = restitutions.product_uuid
+		LEFT JOIN commande_lines ON products.uuid = commande_lines.product_uuid
+		WHERE products.entreprise_uuid = ? AND products.deleted_at IS NULL
 	`
 	stockArgs := []interface{}{entrepriseUUID}
 	if posUUID != "" && posUUID != "null" {
-		stockQuery += " AND pos_uuid = ?"
+		stockQuery += " AND products.pos_uuid = ?"
 		stockArgs = append(stockArgs, posUUID)
 	}
 
@@ -622,18 +655,22 @@ func GetStockKpis(c *fiber.Ctx) error {
 	// Requête pour les données de stock
 	query := `
 		SELECT 
-			COALESCE(SUM(stock), 0) as total_stock,
-			COALESCE(SUM(stock * prix_vente), 0) as stock_valeur,
-			COALESCE(SUM(stock_endommage * prix_achat), 0) as stock_endommage,
-			COALESCE(SUM(restitution * prix_achat), 0) as stock_restitution,
-			COUNT(CASE WHEN stock < 10 THEN 1 END) as stock_alertes
+			COALESCE(SUM(stocks.quantity - stock_endommages.quantity - commande_lines.quantity), 0) as total_stock,
+			COALESCE(SUM(stocks.quantity * prix_vente), 0) as stock_valeur,
+			COALESCE(SUM(stock_endommages.quantity * prix_achat), 0) as stock_endommage,
+			COALESCE(SUM(restitutions.quantity * prix_achat), 0) as stock_restitution,
+			COUNT(CASE WHEN stocks.quantity < 10 THEN 1 END) as stock_alertes
 		FROM products 
-		WHERE entreprise_uuid = ? AND deleted_at IS NULL
+		LEFT JOIN stocks ON products.uuid = stocks.product_uuid
+		LEFT JOIN stock_endommages ON products.uuid = stock_endommages.product_uuid
+		LEFT JOIN restitutions ON products.uuid = restitutions.product_uuid
+		LEFT JOIN commande_lines ON products.uuid = commande_lines.product_uuid
+		WHERE products.entreprise_uuid = ? AND products.deleted_at IS NULL
 	`
 
 	args := []interface{}{entrepriseUUID}
 	if posUUID != "" && posUUID != "null" {
-		query += " AND pos_uuid = ?"
+		query += " AND products.pos_uuid = ?"
 		args = append(args, posUUID)
 	}
 
@@ -684,13 +721,16 @@ func GetStockKpis(c *fiber.Ctx) error {
 	weekAgoPrevious := now.AddDate(0, 0, -7).Format("2006-01-02")
 
 	stockPreviousQuery := `
-		SELECT COALESCE(SUM(stock), 0) as total_stock
+		SELECT COALESCE(SUM(stocks.quantity - stock_endommages.quantity - commande_lines.quantity), 0) as total_stock
 		FROM products 
-		WHERE entreprise_uuid = ? AND deleted_at IS NULL AND created_at <= ?
+		LEFT JOIN stocks ON products.uuid = stocks.product_uuid
+		LEFT JOIN stock_endommages ON products.uuid = stock_endommages.product_uuid
+		LEFT JOIN commande_lines ON products.uuid = commande_lines.product_uuid
+		WHERE products.entreprise_uuid = ? AND products.deleted_at IS NULL AND products.created_at <= ?
 	`
 	stockPreviousArgs := []interface{}{entrepriseUUID, weekAgoPrevious}
 	if posUUID != "" && posUUID != "null" {
-		stockPreviousQuery += " AND pos_uuid = ?"
+		stockPreviousQuery += " AND products.pos_uuid = ?"
 		stockPreviousArgs = append(stockPreviousArgs, posUUID)
 	}
 
@@ -891,13 +931,16 @@ func GetAlertsKpis(c *fiber.Ctx) error {
 	// Vérifier le taux de rotation du stock
 	var stockMoyen float64
 	stockMoyenQuery := `
-		SELECT COALESCE(SUM(stock), 0) 
+		SELECT COALESCE(SUM(stocks.quantity - stock_endommages.quantity - commande_lines.quantity), 0) 
 		FROM products 
-		WHERE entreprise_uuid = ? AND deleted_at IS NULL
+		LEFT JOIN stocks ON products.uuid = stocks.product_uuid
+		LEFT JOIN stock_endommages ON products.uuid = stock_endommages.product_uuid
+		LEFT JOIN commande_lines ON products.uuid = commande_lines.product_uuid
+		WHERE products.entreprise_uuid = ? AND products.deleted_at IS NULL
 	`
 	stockMoyenArgs := []interface{}{entrepriseUUID}
 	if posUUID != "" && posUUID != "null" {
-		stockMoyenQuery += " AND pos_uuid = ?"
+		stockMoyenQuery += " AND products.pos_uuid = ?"
 		stockMoyenArgs = append(stockMoyenArgs, posUUID)
 	}
 
@@ -1105,16 +1148,20 @@ func SetupStockChart(c *fiber.Ctx) error {
 
 	query := `
 		SELECT 
-			COALESCE(SUM(stock), 0) as stock_disponible,
-			COALESCE(SUM(stock_endommage), 0) as stock_endommage,
-			COALESCE(SUM(restitution), 0) as stock_restitution
+			COALESCE(SUM(stocks.quantity - stock_endommages.quantity - commande_lines.quantity), 0) as stock_disponible,
+			COALESCE(SUM(stock_endommages.quantity), 0) as stock_endommage,
+			COALESCE(SUM(restitutions.quantity), 0) as stock_restitution
 		FROM products 
-		WHERE entreprise_uuid = ? AND deleted_at IS NULL
+		LEFT JOIN stocks ON products.uuid = stocks.product_uuid
+		LEFT JOIN stock_endommages ON products.uuid = stock_endommages.product_uuid
+		LEFT JOIN restitutions ON products.uuid = restitutions.product_uuid
+		LEFT JOIN commande_lines ON products.uuid = commande_lines.product_uuid
+		WHERE products.entreprise_uuid = ? AND products.deleted_at IS NULL
 	`
 
 	args := []interface{}{entrepriseUUID}
 	if posUUID != "" && posUUID != "null" {
-		query += " AND pos_uuid = ?"
+		query += " AND products.pos_uuid = ?"
 		args = append(args, posUUID)
 	}
 
