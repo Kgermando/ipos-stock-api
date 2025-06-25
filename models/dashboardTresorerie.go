@@ -21,6 +21,7 @@ type KpiData struct {
 type TopCaisse struct {
 	UUID               string  `json:"uuid"`
 	Name               string  `json:"name"`
+	PosName            string  `json:"pos_name"`
 	Solde              float64 `json:"solde"`
 	TotalEntrees       float64 `json:"total_entrees"`
 	TotalSorties       float64 `json:"total_sorties"`

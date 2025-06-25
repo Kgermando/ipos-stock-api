@@ -325,7 +325,8 @@ func loadTopCaisses(db *gorm.DB, entrepriseUUID, posUUID string, startDate, endD
 	baseQuery := `
 		SELECT 
 			c.uuid, 
-			c.name, 
+			c.name,
+			p.name AS pos_name,
 			COALESCE(SUM(CASE WHEN ci.type_transaction = 'Entree' THEN ci.montant ELSE 0 END), 0) AS total_entrees,
 			COALESCE(SUM(CASE WHEN ci.type_transaction = 'Sortie' THEN ci.montant ELSE 0 END), 0) AS total_sorties,
 			COUNT(ci.uuid) AS nombre_transactions,
@@ -333,6 +334,7 @@ func loadTopCaisses(db *gorm.DB, entrepriseUUID, posUUID string, startDate, endD
 			 COALESCE(SUM(CASE WHEN ci.type_transaction = 'Entree' THEN ci.montant ELSE 0 END), 0) - 
 			 COALESCE(SUM(CASE WHEN ci.type_transaction = 'Sortie' THEN ci.montant ELSE 0 END), 0)) AS solde
 		FROM caisses c
+		LEFT JOIN pos p ON p.uuid = c.pos_uuid
 		LEFT JOIN caisse_items ci ON ci.caisse_uuid = c.uuid 
 			AND ci.created_at BETWEEN ? AND ? 
 			AND ci.deleted_at IS NULL
@@ -360,8 +362,9 @@ func loadTopCaisses(db *gorm.DB, entrepriseUUID, posUUID string, startDate, endD
 	for rows.Next() {
 		var caisse models.TopCaisse
 		err := rows.Scan(
-			&caisse.UUID,
+			&caisse.UUID, 
 			&caisse.Name,
+			&caisse.PosName,
 			&caisse.TotalEntrees,
 			&caisse.TotalSorties,
 			&caisse.NombreTransactions,
