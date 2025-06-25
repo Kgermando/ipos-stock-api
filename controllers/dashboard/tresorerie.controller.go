@@ -349,7 +349,7 @@ func loadTopCaisses(db *gorm.DB, entrepriseUUID, posUUID string, startDate, endD
 	}
 
 	query += `
-		GROUP BY c.uuid, c.name, c.montant_debut
+		GROUP BY c.uuid, c.name, p.name, c.montant_debut
 		ORDER BY solde DESC
 		LIMIT 10`
 
