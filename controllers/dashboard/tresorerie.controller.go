@@ -362,7 +362,7 @@ func loadTopCaisses(db *gorm.DB, entrepriseUUID, posUUID string, startDate, endD
 	for rows.Next() {
 		var caisse models.TopCaisse
 		err := rows.Scan(
-			&caisse.UUID, 
+			&caisse.UUID,
 			&caisse.Name,
 			&caisse.PosName,
 			&caisse.TotalEntrees,
@@ -1228,17 +1228,17 @@ func SetupFluxChart(c *fiber.Ctx) error {
 	var tresorerie []models.TresorerieMoisData
 
 	if posUUID == "" {
-		// Requête SQL optimisée pour récupérer les données par mois avec leur nom
+		// Requête SQL optimisée pour récupérer les données par mois avec leur nom (PostgreSQL)
 		err := db.Raw(`
         SELECT 
-            MONTHNAME(created_at) AS mois,
+            TO_CHAR(created_at, 'Month') AS mois,
             SUM(CASE WHEN type_transaction = 'Entree' THEN montant ELSE 0 END) AS entrees,
             SUM(CASE WHEN type_transaction = 'Sortie' THEN montant ELSE 0 END) AS sorties
         FROM caisse_items 
-        WHERE entreprise_uuid = ? AND YEAR(created_at) = ? AND
+        WHERE entreprise_uuid = ? AND EXTRACT(YEAR FROM created_at) = ? AND
 			deleted_at IS NULL
-        GROUP BY MONTH(created_at)
-        ORDER BY MONTH(created_at)
+        GROUP BY EXTRACT(MONTH FROM created_at), TO_CHAR(created_at, 'Month')
+        ORDER BY EXTRACT(MONTH FROM created_at)
     `, entrepriseUUID, currentYear).Scan(&tresorerie).Error
 
 		if err != nil {
@@ -1249,18 +1249,18 @@ func SetupFluxChart(c *fiber.Ctx) error {
 			})
 		}
 	} else {
-		// Requête SQL optimisée pour récupérer les données par mois avec leur nom
+		// Requête SQL optimisée pour récupérer les données par mois avec leur nom (PostgreSQL)
 		err := db.Raw(`
         SELECT 
-            MONTHNAME(created_at) AS mois,
+            TO_CHAR(created_at, 'Month') AS mois,
             SUM(CASE WHEN type_transaction = 'Entree' THEN montant ELSE 0 END) AS entrees,
             SUM(CASE WHEN type_transaction = 'Sortie' THEN montant ELSE 0 END) AS sorties
         FROM caisse_items 
-        WHERE entreprise_uuid = ? AND pos_uuid = ?  AND
+        WHERE entreprise_uuid = ? AND pos_uuid = ? AND
 			deleted_at IS NULL
-              AND YEAR(created_at) = ?
-        GROUP BY MONTH(created_at)
-        ORDER BY MONTH(created_at)
+              AND EXTRACT(YEAR FROM created_at) = ?
+        GROUP BY EXTRACT(MONTH FROM created_at), TO_CHAR(created_at, 'Month')
+        ORDER BY EXTRACT(MONTH FROM created_at)
     `, entrepriseUUID, posUUID, currentYear).Scan(&tresorerie).Error
 
 		if err != nil {
@@ -1274,13 +1274,22 @@ func SetupFluxChart(c *fiber.Ctx) error {
 
 	// Traduction des noms des mois en français
 	moisMap := map[string]string{
-		"January": "Jan", "February": "Fév", "March": "Mar", "April": "Avr",
-		"May": "Mai", "June": "Juin", "July": "Juil", "August": "Août",
-		"September": "Sep", "October": "Oct", "November": "Nov", "December": "Déc",
+		"January ": "Jan", "February": "Fév", "March   ": "Mar", "April   ": "Avr",
+		"May     ": "Mai", "June    ": "Juin", "July    ": "Juil", "August  ": "Août",
+		"September": "Sep", "October ": "Oct", "November": "Nov", "December": "Déc",
 	}
 
 	for _, t := range tresorerie {
-		mois = append(mois, moisMap[t.Mois]) // Convertit le mois en format abrégé français
+		// Nettoyer les espaces en trop du nom du mois
+		monthName := strings.TrimSpace(t.Mois)
+		if frenchMonth, exists := moisMap[t.Mois]; exists {
+			mois = append(mois, frenchMonth)
+		} else if frenchMonth, exists := moisMap[monthName]; exists {
+			mois = append(mois, frenchMonth)
+		} else {
+			// Fallback: utiliser les 3 premières lettres
+			mois = append(mois, monthName[:3])
+		}
 		entreesData = append(entreesData, t.Entrees)
 		sortiesData = append(sortiesData, t.Sorties)
 	}

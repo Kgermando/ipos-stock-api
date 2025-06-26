@@ -22,8 +22,7 @@ func GetDataSynchronisation(c *fiber.Ctx) error {
 	var data []models.Fournisseur
 	db.Unscoped().Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("pos_uuid = ?", posUUID).
-		Where("created_at > ?", sync_created).
-		Where("fournisseurs.deleted_at IS NULL").
+		Where("created_at > ?", sync_created). 
 		Order("fournisseurs.updated_at DESC").
 		Preload("Pos").
 		Find(&data)

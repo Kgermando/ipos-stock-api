@@ -197,6 +197,7 @@ func Setup(app *fiber.App) {
 	tresorerie.Get("/financial-summary", dashboard.GetFinancialSummary)
 	tresorerie.Get("/top-caisses", dashboard.GetTopCaisses)
 	tresorerie.Get("/alerts-recommendations", dashboard.GetAlertsAndRecommendations)
+	tresorerie.Get("/flux-chart", dashboard.SetupFluxChart)
 
 	
 	// KPI Dashboard - Nouveaux endpoints améliorés
