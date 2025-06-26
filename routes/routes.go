@@ -181,7 +181,7 @@ func Setup(app *fiber.App) {
 	cmdl.Post("/create", commandes.CreateCommandeLine)
 	cmdl.Put("/update/:uuid", commandes.UpdateCommandeLine)
 	cmdl.Delete("/delete/:uuid", commandes.DeleteCommandeLine)
-	
+
 	// Dashboard
 	// Tresorerie - Nouveau système complet de dashboard
 	dash := api.Group("/dashboard")
@@ -198,11 +198,11 @@ func Setup(app *fiber.App) {
 	tresorerie.Get("/top-caisses", dashboard.GetTopCaisses)
 	tresorerie.Get("/alerts-recommendations", dashboard.GetAlertsAndRecommendations)
 	tresorerie.Get("/flux-chart", dashboard.SetupFluxChart)
+	tresorerie.Get("/performance-caisse", dashboard.PerformanceCaisse)
 
-	
 	// KPI Dashboard - Nouveaux endpoints améliorés
 	kpi := dash.Group("/kpi")
-	
+
 	// Endpoints principaux pour le frontend Angular
 	kpi.Get("/global-kpis", dashboard.GlobalKpis)
 	kpi.Get("/evolution-vente", dashboard.GetEvolutionVente)
@@ -212,7 +212,7 @@ func Setup(app *fiber.App) {
 	kpi.Get("/stock-faible", dashboard.GetStockFaible)
 	kpi.Get("/stock-chart", dashboard.SetupStockChart)
 	kpi.Get("/alerts-kpis", dashboard.GetAlertsKpis)
-	
+
 	// Endpoints legacy pour compatibilité
 	kpi.Get("/global", dashboard.GlobalKpiSummary)
 	kpi.Get("/best-selling-prroduct", dashboard.BestSellingProduct)

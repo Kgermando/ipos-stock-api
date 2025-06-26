@@ -1564,3 +1564,127 @@ func FinancialMetrics(c *fiber.Ctx) error {
 		"data":    metriques,
 	})
 }
+
+func PerformanceCaisse(c *fiber.Ctx) error {
+	db := database.DB
+
+	// Récupération des paramètres
+	entrepriseUUID := c.Query("entreprise_uuid")
+	posUUID := c.Query("pos_uuid", "")
+	limitStr := c.Query("limit", "10")
+
+	if entrepriseUUID == "" {
+		return c.Status(400).JSON(fiber.Map{
+			"success": false,
+			"error":   "UUID entreprise requis",
+		})
+	}
+
+	// Conversion de la limite
+	limit, err := strconv.Atoi(limitStr)
+	if err != nil {
+		limit = 10
+	}
+
+	// Structure pour les données de performance
+	type CaissePerformance struct {
+		Name           string  `json:"name"`
+		Solde          float64 `json:"solde"`
+		MontantEntrees float64 `json:"montant_entrees"`
+		MontantSorties float64 `json:"montant_sorties"`
+	}
+
+	var caisses []CaissePerformance
+
+	// Construction de la requête selon le POS
+	var query string
+	var args []interface{}
+
+	baseQuery := `
+		SELECT 
+			c.name,
+			COALESCE(c.montant_debut, 0) + 
+			COALESCE(SUM(CASE WHEN ci.type_transaction = 'Entree' THEN ci.montant ELSE 0 END), 0) - 
+			COALESCE(SUM(CASE WHEN ci.type_transaction = 'Sortie' THEN ci.montant ELSE 0 END), 0) AS solde,
+			COALESCE(SUM(CASE WHEN ci.type_transaction = 'Entree' THEN ci.montant ELSE 0 END), 0) AS montant_entrees,
+			COALESCE(SUM(CASE WHEN ci.type_transaction = 'Sortie' THEN ci.montant ELSE 0 END), 0) AS montant_sorties
+		FROM caisses c
+		LEFT JOIN caisse_items ci ON ci.caisse_uuid = c.uuid AND ci.deleted_at IS NULL
+		WHERE c.entreprise_uuid = ? AND c.deleted_at IS NULL`
+
+	if posUUID != "" {
+		query = baseQuery + " AND c.pos_uuid = ?"
+		args = []interface{}{entrepriseUUID, posUUID}
+	} else {
+		query = baseQuery
+		args = []interface{}{entrepriseUUID}
+	}
+
+	query += `
+		GROUP BY c.uuid, c.name, c.montant_debut
+		ORDER BY solde DESC
+		LIMIT ?`
+
+	args = append(args, limit)
+
+	rows, err := db.Raw(query, args...).Rows()
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"success": false,
+			"error":   "Erreur lors de la récupération des caisses: " + err.Error(),
+		})
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var caisse CaissePerformance
+		err := rows.Scan(
+			&caisse.Name,
+			&caisse.Solde,
+			&caisse.MontantEntrees,
+			&caisse.MontantSorties,
+		)
+		if err != nil {
+			continue
+		}
+		caisses = append(caisses, caisse)
+	}
+
+	// Préparation des données pour le graphique
+	var caisseName []string
+	var soldeData []float64
+	var entreesData []float64
+	var sortiesData []float64
+
+	for _, caisse := range caisses {
+		caisseName = append(caisseName, caisse.Name)
+		soldeData = append(soldeData, caisse.Solde)
+		entreesData = append(entreesData, caisse.MontantEntrees)
+		sortiesData = append(sortiesData, caisse.MontantSorties)
+	}
+
+	// Structure de la réponse
+	chartData := map[string]interface{}{
+		"series": []map[string]interface{}{
+			{
+				"name": "Solde",
+				"data": soldeData,
+			},
+			{
+				"name": "Entrées",
+				"data": entreesData,
+			},
+			{
+				"name": "Sorties",
+				"data": sortiesData,
+			},
+		},
+		"categories": caisseName,
+	}
+
+	return c.JSON(fiber.Map{
+		"success": true,
+		"message": "Données de performance des caisses récupérées avec succès",
+		"data":    chartData,
+	})
+}
