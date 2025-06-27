@@ -23,9 +23,15 @@ type Pos struct {
 	CodeEntreprise uint64         `json:"code_entreprise"`
 	Sync           bool           `gorm:"default:false" json:"sync"`
 
-	Users        []User        `gorm:"foreignKey:PosUUID;references:UUID"` // Liste des utilisateurs du point de vente
-	Products     []Product     `gorm:"foreignKey:PosUUID;references:UUID"` // Liste des utilisateurs du point de vente
-	Commandes    []Commande    `gorm:"foreignKey:PosUUID;references:UUID"` // Liste des utilisateurs du point de vente
-	Clients      []Client      `gorm:"foreignKey:PosUUID;references:UUID"` // Liste des utilisateurs du point de vente
-	Fournisseurs []Fournisseur `gorm:"foreignKey:PosUUID;references:UUID"` // Liste des utilisateurs du point de vente
+	Users           []User          `gorm:"foreignKey:PosUUID;references:UUID"` // Liste des utilisateurs du point de vente
+	Products        []Product       `gorm:"foreignKey:PosUUID;references:UUID"` // Liste des utilisateurs du point de vente
+	Caisses         []Caisse        `gorm:"foreignKey:PosUUID;references:UUID"` // Liste des caisses associées au point de vente
+	CaisseItems     []CaisseItem    `gorm:"foreignKey:PosUUID;references:UUID"` // Liste des items de caisse associés au point de vente
+	Commandes       []Commande      `gorm:"foreignKey:PosUUID;references:UUID"` // Liste des utilisateurs du point de vente
+	Clients         []Client        `gorm:"foreignKey:PosUUID;references:UUID"` // Liste des utilisateurs du point de vente
+	Fournisseurs    []Fournisseur   `gorm:"foreignKey:PosUUID;references:UUID"` // Liste des utilisateurs du point de vente
+	CommandeLines   []CommandeLine  `gorm:"foreignKey:PosUUID;references:UUID"` // Liste des lignes de commande associées au point de vente
+	Stocks          []Stock         `gorm:"foreignKey:PosUUID;references:UUID"` // Liste des stocks associés au point de vente
+	StockEndommages []StockEndommage `gorm:"foreignKey:PosUUID;references:UUID"` // Liste des stocks endommagés associés au point de vente
+	Restitutions    []Restitution   `gorm:"foreignKey:PosUUID;references:UUID"` // Liste des restitutions associées au point de vente
 }

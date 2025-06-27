@@ -17,5 +17,7 @@ type CommandeLine struct {
 	Product        Product        `gorm:"foreignKey:ProductUUID;references:UUID"` // Produit associé
 	Quantity       uint64         `gorm:"not null" json:"quantity"`
 	EntrepriseUUID string         `json:"entreprise_uuid"`
+	PosUUID        string         `gorm:"type:varchar(255);not null" json:"pos_uuid"`
+	Pos            Pos            `gorm:"foreignKey:PosUUID;references:UUID"` // Point de vente
 	Sync           bool           `gorm:"default:false" json:"sync"`
 }
