@@ -779,11 +779,14 @@ func GetStockFaible(c *fiber.Ctx) error {
 		SELECT 
 			uuid,
 			name,
-			COALESCE(stock, 0) as quantite,
-			COALESCE(stock * prix_vente, 0) as valeur,
-			COALESCE(stock, 0) as stock,
+			COALESCE(SUM(stocks.quantity - stock_endommages.quantity - commande_lines.quantity), 0) as quantite,
+			COALESCE(SUM(stocks.quantity - stock_endommages.quantity - commande_lines.quantity * prix_vente), 0) as valeur,
+			COALESCE(SUM(stocks.quantity - stock_endommages.quantity - commande_lines.quantity), 0) as stock,
 			0 as variation
 		FROM products
+		LEFT JOIN stocks ON products.uuid = stocks.product_uuid
+		LEFT JOIN stock_endommages ON products.uuid = stock_endommages.product_uuid 
+		LEFT JOIN commande_lines ON products.uuid = commande_lines.product_uuid
 		WHERE entreprise_uuid = ? AND stock < 10 AND deleted_at IS NULL
 	`
 
