@@ -92,7 +92,7 @@ func GetPaginatedPosByUUID(c *fiber.Ctx) error {
 	var totalRecords int64
 
 	// Count total records matching the search query
-	db.Model(&models.CommandeLine{}).
+	db.Model(&models.Pos{}).
 		Where("entreprise_uuid = ?", EntrepriseUUID).
 		Where("name ILIKE ? OR manager ILIKE ?", "%"+search+"%", "%"+search+"%").
 		Count(&totalRecords)
