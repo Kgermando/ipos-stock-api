@@ -787,16 +787,16 @@ func GetStockFaible(c *fiber.Ctx) error {
 		LEFT JOIN stocks ON products.uuid = stocks.product_uuid
 		LEFT JOIN stock_endommages ON products.uuid = stock_endommages.product_uuid 
 		LEFT JOIN commande_lines ON products.uuid = commande_lines.product_uuid
-		WHERE entreprise_uuid = ? AND SUM(stocks.quantity - stock_endommages.quantity - commande_lines.quantity) < 10 AND deleted_at IS NULL
+		WHERE products.entreprise_uuid = ? AND SUM(stocks.quantity - stock_endommages.quantity - commande_lines.quantity) < 10 AND products.deleted_at IS NULL
 	`
 
 	args := []interface{}{entrepriseUUID}
 	if posUUID != "" && posUUID != "null" {
-		query += " AND pos_uuid = ?"
+		query += " AND products.pos_uuid = ?"
 		args = append(args, posUUID)
 	}
 
-	query += " ORDER BY stock ASC LIMIT ?"
+	query += " ORDER BY SUM(stocks.quantity - stock_endommages.quantity - commande_lines.quantity) ASC LIMIT ?"
 	args = append(args, limit)
 
 	rows, err := db.Raw(query, args...).Rows()
