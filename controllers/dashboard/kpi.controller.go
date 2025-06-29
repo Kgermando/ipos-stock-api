@@ -787,7 +787,7 @@ func GetStockFaible(c *fiber.Ctx) error {
 		LEFT JOIN stocks ON products.uuid = stocks.product_uuid
 		LEFT JOIN stock_endommages ON products.uuid = stock_endommages.product_uuid 
 		LEFT JOIN commande_lines ON products.uuid = commande_lines.product_uuid
-		WHERE entreprise_uuid = ? AND stock < 10 AND deleted_at IS NULL
+		WHERE entreprise_uuid = ? AND SUM(stocks.quantity - stock_endommages.quantity - commande_lines.quantity) < 10 AND deleted_at IS NULL
 	`
 
 	args := []interface{}{entrepriseUUID}
