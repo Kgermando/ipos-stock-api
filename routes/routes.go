@@ -59,10 +59,10 @@ func Setup(app *fiber.App) {
 
 	// POS controller
 	p := api.Group("/pos")
-	p.Get("/all", pos.GetAllPoss)
-	p.Get("/all/paginate/:entreprise_uuid", pos.GetPaginatedPosByUUID)
+	// p.Get("/all", pos.GetAllPoss)
+	p.Get("/all/paginate", pos.GetPaginatedPos)
 	p.Get("/all/:entreprise_uuid", pos.GetAllPosByUUId)
-	p.Get("/:entreprise_uuid/all/paginate", pos.GetPaginatedPos)
+	p.Get("/:entreprise_uuid/all/paginate", pos.GetPaginatedPosByUUID)
 	p.Get("/get/:uuid", pos.GetPos)
 	p.Post("/create", pos.CreatePos)
 	p.Put("/update/:uuid", pos.UpdatePos)
