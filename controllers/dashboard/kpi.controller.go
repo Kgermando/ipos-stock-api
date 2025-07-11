@@ -777,26 +777,27 @@ func GetStockFaible(c *fiber.Ctx) error {
 
 	query := `
 		SELECT 
-			uuid,
-			name,
+			products.uuid,
+			products.name,
 			COALESCE(SUM(stocks.quantity - stock_endommages.quantity - commande_lines.quantity), 0) as quantite,
-			COALESCE(SUM(stocks.quantity - stock_endommages.quantity - commande_lines.quantity * prix_vente), 0) as valeur,
+			COALESCE(SUM((stocks.quantity - stock_endommages.quantity - commande_lines.quantity) * products.prix_vente), 0) as valeur,
 			COALESCE(SUM(stocks.quantity - stock_endommages.quantity - commande_lines.quantity), 0) as stock,
 			0 as variation
 		FROM products
 		LEFT JOIN stocks ON products.uuid = stocks.product_uuid
 		LEFT JOIN stock_endommages ON products.uuid = stock_endommages.product_uuid 
 		LEFT JOIN commande_lines ON products.uuid = commande_lines.product_uuid
-		WHERE products.entreprise_uuid = ? AND SUM(stocks.quantity - stock_endommages.quantity - commande_lines.quantity) < 10 AND products.deleted_at IS NULL
-	`
-
+		WHERE products.entreprise_uuid = ? AND products.deleted_at IS NULL`
 	args := []interface{}{entrepriseUUID}
 	if posUUID != "" && posUUID != "null" {
 		query += " AND products.pos_uuid = ?"
 		args = append(args, posUUID)
 	}
-
-	query += " ORDER BY SUM(stocks.quantity - stock_endommages.quantity - commande_lines.quantity) ASC LIMIT ?"
+	query += `
+	GROUP BY products.uuid, products.name
+	HAVING COALESCE(SUM(stocks.quantity - stock_endommages.quantity - commande_lines.quantity), 0) < 10
+	ORDER BY quantite ASC
+	LIMIT ?`
 	args = append(args, limit)
 
 	rows, err := db.Raw(query, args...).Rows()

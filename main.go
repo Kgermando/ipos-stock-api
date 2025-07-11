@@ -4,11 +4,12 @@ import (
 	"log"
 	"os"
 	"strings"
-	"github.com/kgermando/ipos-stock-api/database"
-	"github.com/kgermando/ipos-stock-api/routes"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/gofiber/fiber/v2/middleware/logger"
+	"github.com/kgermando/ipos-stock-api/database"
+	"github.com/kgermando/ipos-stock-api/routes"
 )
 
 func getPort() string {
@@ -33,7 +34,7 @@ func main() {
 
 	// Middleware
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "https://ipos-stock.onrender.com, http://localhost:4200, http://192.168.21.185:4200",
+		AllowOrigins:     "https://ipos-stock.onrender.com, http://localhost:4200, http://192.168.1.69:4200",
 		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, Expires, Cache-Control, Pragma",
 		AllowCredentials: true,
 		AllowMethods: strings.Join([]string{
