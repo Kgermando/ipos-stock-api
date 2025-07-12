@@ -2,16 +2,30 @@ package abonnements
 
 import (
 	"strconv"
+	"time"
 
+	"github.com/gofiber/fiber/v2"
 	"github.com/kgermando/ipos-stock-api/database"
 	"github.com/kgermando/ipos-stock-api/models"
 	"github.com/kgermando/ipos-stock-api/utils"
-
-	"github.com/gofiber/fiber/v2"
 )
 
-// Paginate
-func GetPaginatedAbonnement(c *fiber.Ctx) error {
+// GetAllAbonnements récupère tous les abonnements
+func GetAllAbonnements(c *fiber.Ctx) error {
+	db := database.DB
+
+	var data []models.Subscription
+	db.Order("created_at DESC").Find(&data)
+
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": "All Abonnements",
+		"data":    data,
+	})
+}
+
+// GetPaginatedAbonnements récupère les abonnements avec pagination
+func GetPaginatedAbonnements(c *fiber.Ctx) error {
 	db := database.DB
 
 	// Parse query parameters for pagination
@@ -23,259 +37,258 @@ func GetPaginatedAbonnement(c *fiber.Ctx) error {
 	if err != nil || limit <= 0 {
 		limit = 15
 	}
+
+	status := c.Query("status")
+	search := c.Query("search")
+
+	// Calculate offset
 	offset := (page - 1) * limit
 
-	search := c.Query("search", "")
+	query := db.Model(&models.Subscription{})
 
-	var dataList []models.Abonnement
+	// Apply filters
+	if status != "" {
+		query = query.Where("status = ?", status)
+	}
+	if search != "" {
+		query = query.Where("name ILIKE ? OR email ILIKE ?", "%"+search+"%", "%"+search+"%")
+	}
 
-	var totalRecords int64
+	var data []models.Subscription
+	var total int64
 
-	db.Model(&models.Abonnement{}).
-		Where("bouquet ILIKE ? OR moyen_payment ILIKE ?", "%"+search+"%", "%"+search+"%").
-		Count(&totalRecords)
+	// Get total count
+	query.Count(&total)
 
-	err = db.Where("bouquet ILIKE ? OR moyen_payment ILIKE ?", "%"+search+"%", "%"+search+"%").
-		Offset(offset).
+	// Get paginated results
+	query.Order("created_at DESC").
 		Limit(limit).
-		Order("abonnement.updated_at DESC").
-		Preload("Entreprise").
-		Find(&dataList).Error
-
-	if err != nil {
-		return c.Status(500).JSON(fiber.Map{
-			"status":  "error",
-			"message": "Failed to fetch abonnements",
-			"error":   err.Error(),
-		})
-	}
-
-	// Calculate total pages
-	totalPages := int((totalRecords + int64(limit) - 1) / int64(limit))
-
-	// Prepare pagination metadata
-	pagination := map[string]interface{}{
-		"total_records": totalRecords,
-		"total_pages":   totalPages,
-		"current_page":  page,
-		"page_size":     limit,
-	}
-
-	// Return response
-	return c.JSON(fiber.Map{
-		"status":     "success",
-		"message":    "All abonnements",
-		"data":       dataList,
-		"pagination": pagination,
-	})
-}
-
-// Query all data ID
-func GetPaginatedAbonnementByID(c *fiber.Ctx) error {
-	db := database.DB
-	EntrepriseUUID := c.Params("entreprise_uuid")
-
-	page, err := strconv.Atoi(c.Query("page", "1"))
-	if err != nil || page <= 0 {
-		page = 1 // Default page number
-	}
-	limit, err := strconv.Atoi(c.Query("limit", "15"))
-	if err != nil || limit <= 0 {
-		limit = 15
-	}
-	offset := (page - 1) * limit
-
-	search := c.Query("search", "")
-
-	var dataList []models.Abonnement
-	var totalRecords int64
-
-	db.Model(&models.Abonnement{}).
-		Where("entreprise_uuid = ?", EntrepriseUUID).
-		Where("bouquet ILIKE ? OR moyen_payment ILIKE ?", "%"+search+"%", "%"+search+"%").
-		Count(&totalRecords)
-
-		err = db.Where("entreprise_uuid = ?", EntrepriseUUID).
-		Where("bouquet ILIKE ? OR moyen_payment ILIKE ?", "%"+search+"%", "%"+search+"%").
 		Offset(offset).
-		Limit(limit).
-		Order("abonnement.updated_at DESC").
-		Preload("Entreprise").
-		Find(&dataList).Error 
+		Find(&data)
 
-	if err != nil {
-		return c.Status(500).JSON(fiber.Map{
-			"status":  "error",
-			"message": "Failed to fetch abonnements",
-			"error":   err.Error(),
-		})
-	}
-
-	// Calculate total pages
-	totalPages := int((totalRecords + int64(limit) - 1) / int64(limit))
-
-	// Prepare pagination metadata
-	pagination := map[string]interface{}{
-		"total_records": totalRecords,
-		"total_pages":   totalPages,
-		"current_page":  page,
-		"page_size":     limit,
-	}
-
-	// Return response
-	return c.JSON(fiber.Map{
-		"status":     "success",
-		"message":    "abonnements retrieved successfully",
-		"data":       dataList,
-		"pagination": pagination,
-	})
-}
-
-// Get All data
-func GetAllAbonnements(c *fiber.Ctx) error {
-	db := database.DB
-	var data []models.Abonnement
-
-	db.Preload("Entreprise").Find(&data)
+	// Calculate pagination info
+	totalPages := (int(total) + limit - 1) / limit
 
 	return c.JSON(fiber.Map{
 		"status":  "success",
-		"message": "All abonnements",
+		"message": "All Abonnements",
 		"data":    data,
+		"pagination": fiber.Map{
+			"current_page": page,
+			"per_page":     limit,
+			"total":        total,
+			"total_pages":  totalPages,
+		},
 	})
 }
 
-// Get All data
-func GetAllAbonnementByUUId(c *fiber.Ctx) error {
-	db := database.DB
-	EntrepriseUUID := c.Params("entreprise_uuid")
-
-	var data []models.Abonnement
-	db.Where("entreprise_uuid = ?", EntrepriseUUID).Preload("Entreprise").Find(&data)
-	return c.JSON(fiber.Map{
-		"status":  "success",
-		"message": "All abonnements",
-		"data":    data,
-	})
-}
-
-// Get one data
+// GetAbonnement récupère un abonnement par UUID
 func GetAbonnement(c *fiber.Ctx) error {
-	uuid := c.Params("uuid")
 	db := database.DB
+	uuid := c.Params("uuid")
 
-	var abonnement models.Abonnement
-	db.Where("uuid = ?", uuid).Preload("Entreprise").First(&abonnement)
-	if abonnement.Bouquet == "" {
-		return c.Status(404).JSON(
-			fiber.Map{
-				"status":  "error",
-				"message": "No abonnement name found",
-				"data":    nil,
-			},
-		)
+	var data models.Subscription
+	if err := db.Where("uuid = ?", uuid).First(&data).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Abonnement not found",
+		})
 	}
-	return c.JSON(
-		fiber.Map{
-			"status":  "success",
-			"message": "abonnement found",
-			"data":    abonnement,
-		},
-	)
+
+	return c.JSON(fiber.Map{
+		"status": "success",
+		"data":   data,
+	})
 }
 
-// Create data
+// CreateAbonnement crée un nouvel abonnement
 func CreateAbonnement(c *fiber.Ctx) error {
-	p := &models.Abonnement{}
+	db := database.DB
 
-	if err := c.BodyParser(&p); err != nil {
-		return err
+	var data models.Subscription
+	if err := c.BodyParser(&data); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Invalid JSON",
+		})
 	}
 
-	p.UUID = utils.GenerateUUID()
-	p.Sync = true
-	database.DB.Create(p)
+	// Validation
+	if err := utils.ValidateStruct(data); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Validation failed",
+			"error":   err,
+		})
+	}
 
-	return c.JSON(
-		fiber.Map{
-			"status":  "success",
-			"message": "abonnement created success",
-			"data":    p,
-		},
-	)
+	data.UUID = utils.GenerateUUID()
+	data.CreatedAt = time.Now()
+	data.UpdatedAt = time.Now()
+	data.Status = models.StatusPending
+
+	if err := db.Create(&data).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to create abonnement",
+		})
+	}
+
+	return c.Status(201).JSON(fiber.Map{
+		"status":  "success",
+		"message": "Abonnement created successfully",
+		"data":    data,
+	})
 }
 
-// Update data
+// UpdateAbonnement met à jour un abonnement
 func UpdateAbonnement(c *fiber.Ctx) error {
-	uuid := c.Params("uuid")
 	db := database.DB
+	uuid := c.Params("uuid")
 
-	type UpdateData struct {
-		EntrepriseUUID string  `json:"entreprise_uuid"`
-		Bouquet        string  `json:"bouquet"` // Premium, Platinium, Fremium
-		Montant        float64 `json:"montant"`
-		MoyenPayment   string  `json:"moyen_payment"`
-		Signature      string  `json:"signature"`
+	var abonnement models.Subscription
+	if err := db.Where("uuid = ?", uuid).First(&abonnement).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Abonnement not found",
+		})
 	}
 
-	var updateData UpdateData
-
+	var updateData models.Subscription
 	if err := c.BodyParser(&updateData); err != nil {
-		return c.Status(500).JSON(
-			fiber.Map{
-				"status":  "error",
-				"message": "Review your iunput",
-				"data":    nil,
-			},
-		)
+		return c.Status(400).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Invalid JSON",
+		})
 	}
 
-	abonnement := new(models.Abonnement)
+	// Update fields
+	abonnement.Name = updateData.Name
+	abonnement.Email = updateData.Email
+	abonnement.Telephone = updateData.Telephone
+	abonnement.Planid = updateData.Planid
+	abonnement.PlanName = updateData.PlanName
+	abonnement.Duration = updateData.Duration
+	abonnement.Amount = updateData.Amount
+	abonnement.PaymentMethod = updateData.PaymentMethod
+	abonnement.Status = updateData.Status
+	abonnement.UpdatedAt = time.Now()
 
-	db.Where("uuid = ?", uuid).First(&abonnement)
-	abonnement.EntrepriseUUID = updateData.EntrepriseUUID
-	abonnement.Bouquet = updateData.Bouquet
-	abonnement.Montant = updateData.Montant
-	abonnement.MoyenPayment = updateData.MoyenPayment
-	abonnement.Signature = updateData.Signature
+	if err := db.Save(&abonnement).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to update abonnement",
+		})
+	}
 
-	db.Save(&abonnement)
-
-	return c.JSON(
-		fiber.Map{
-			"status":  "success",
-			"message": "abonnement updated success",
-			"data":    abonnement,
-		},
-	)
-
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": "Abonnement updated successfully",
+		"data":    abonnement,
+	})
 }
 
-// Delete data
+// DeleteAbonnement supprime un abonnement
 func DeleteAbonnement(c *fiber.Ctx) error {
+	db := database.DB
 	uuid := c.Params("uuid")
 
-	db := database.DB
-
-	var abonnement models.Abonnement
-	db.Where("uuid = ?", uuid).First(&abonnement)
-	if abonnement.Bouquet == "" {
-		return c.Status(404).JSON(
-			fiber.Map{
-				"status":  "error",
-				"message": "No abonnement Bouquet found",
-				"data":    nil,
-			},
-		)
+	var abonnement models.Subscription
+	if err := db.Where("uuid = ?", uuid).First(&abonnement).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Abonnement not found",
+		})
 	}
 
-	db.Delete(&abonnement)
+	if err := db.Delete(&abonnement).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to delete abonnement",
+		})
+	}
 
-	return c.JSON(
-		fiber.Map{
-			"status":  "success",
-			"message": "abonnement deleted success",
-			"data":    nil,
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": "Abonnement deleted successfully",
+	})
+}
+
+// GetCurrentSubscription récupère l'abonnement actuel d'une entreprise
+func GetCurrentSubscription(c *fiber.Ctx) error {
+	db := database.DB
+	entrepriseUUID := c.Query("entreprise_uuid")
+
+	if entrepriseUUID == "" {
+		return c.Status(400).JSON(fiber.Map{
+			"status":  "error",
+			"message": "entreprise_uuid is required",
+		})
+	}
+
+	var subscription models.Subscription
+	if err := db.Where("entreprise_uuid = ? AND status = ?", entrepriseUUID, models.StatusActive).
+		Order("created_at DESC").
+		First(&subscription).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{
+			"status":  "error",
+			"message": "No active subscription found",
+		})
+	}
+
+	return c.JSON(fiber.Map{
+		"status": "success",
+		"data":   subscription,
+	})
+}
+
+// GetAvailablePlans récupère les plans disponibles
+func GetAvailablePlans(c *fiber.Ctx) error {
+	// Retourner les plans par défaut
+	plans := []models.SubscriptionPlan{
+		{
+			UUID:        "basic",
+			Name:        "Basic",
+			Description: "Plan de base",
+			Price:       29.99,
+			Currency:    "USD",
+			Duration:    1,
+			MaxUsers:    5,
+			MaxPOS:      2,
+			StorageGB:   10,
+			Features:    []string{"Gestion des stocks", "Ventes", "Support email"},
+			Popular:     false,
 		},
-	)
+		{
+			UUID:        "professional",
+			Name:        "Professional",
+			Description: "Plan professionnel",
+			Price:       59.99,
+			Currency:    "USD",
+			Duration:    1,
+			MaxUsers:    15,
+			MaxPOS:      5,
+			StorageGB:   50,
+			Features:    []string{"Toutes fonctionnalités Basic", "Rapports avancés", "Support prioritaire"},
+			Popular:     true,
+		},
+		{
+			UUID:        "enterprise",
+			Name:        "Enterprise",
+			Description: "Plan entreprise",
+			Price:       99.99,
+			Currency:    "USD",
+			Duration:    1,
+			MaxUsers:    -1,
+			MaxPOS:      -1,
+			StorageGB:   200,
+			Features:    []string{"Toutes fonctionnalités Professional", "Support dédié", "API complète"},
+			Popular:     false,
+		},
+	}
+
+	return c.JSON(fiber.Map{
+		"status": "success",
+		"data":   plans,
+	})
 }

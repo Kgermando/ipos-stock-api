@@ -2,6 +2,7 @@ package routes
 
 import (
 	"github.com/gofiber/fiber/v2"
+	"github.com/kgermando/ipos-stock-api/controllers/abonnements"
 	"github.com/kgermando/ipos-stock-api/controllers/auth"
 	"github.com/kgermando/ipos-stock-api/controllers/caisses"
 	"github.com/kgermando/ipos-stock-api/controllers/clients"
@@ -12,6 +13,7 @@ import (
 	"github.com/kgermando/ipos-stock-api/controllers/pos"
 	"github.com/kgermando/ipos-stock-api/controllers/products"
 	"github.com/kgermando/ipos-stock-api/controllers/stocks"
+	"github.com/kgermando/ipos-stock-api/controllers/subscriptions"
 	"github.com/kgermando/ipos-stock-api/controllers/users"
 
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -216,5 +218,35 @@ func Setup(app *fiber.App) {
 	// Endpoints legacy pour compatibilité
 	kpi.Get("/global", dashboard.GlobalKpiSummary)
 	kpi.Get("/best-selling-prroduct", dashboard.BestSellingProduct)
+
+	// Abonnements controller
+	ab := api.Group("/abonnements")
+	ab.Get("/all", abonnements.GetAllAbonnements)
+	ab.Get("/all/paginate", abonnements.GetPaginatedAbonnements)
+	ab.Get("/get/:uuid", abonnements.GetAbonnement)
+	ab.Post("/create", abonnements.CreateAbonnement)
+	ab.Put("/update/:uuid", abonnements.UpdateAbonnement)
+	ab.Delete("/delete/:uuid", abonnements.DeleteAbonnement)
+	ab.Get("/current", abonnements.GetCurrentSubscription)
+	ab.Get("/plans", abonnements.GetAvailablePlans)
+
+	// Subscriptions controller
+	sub := api.Group("/subscriptions")
+	sub.Post("/create", subscriptions.CreateSubscription)
+	sub.Get("/get/:uuid", subscriptions.GetSubscriptionByID)
+	sub.Put("/update-plan/:uuid", subscriptions.UpdateSubscriptionPlan)
+	sub.Post("/process-payment/:uuid", subscriptions.ProcessPayment)
+	sub.Post("/confirm-payment/:uuid", subscriptions.ConfirmPayment)
+	sub.Get("/default-plans", subscriptions.GetDefaultPlans)
+
+	// Subscription admin controller
+	subAdmin := api.Group("/subscriptions/admin")
+	subAdmin.Get("/all", subscriptions.GetSubscriptionsForAdmin)
+	subAdmin.Get("/get/:uuid", subscriptions.GetSubscriptionByIDAdmin)
+	subAdmin.Post("/approve/:uuid", subscriptions.ApproveSubscription)
+	subAdmin.Post("/reject/:uuid", subscriptions.RejectSubscription)
+	subAdmin.Post("/suspend/:uuid", subscriptions.SuspendSubscription)
+	subAdmin.Get("/stats", subscriptions.GetSubscriptionStatsAdmin)
+	subAdmin.Put("/update/:uuid", subscriptions.UpdateSubscriptionAdmin)
 
 }

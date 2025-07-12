@@ -30,10 +30,10 @@ func Connect() {
 	DB = connection
 	fmt.Println("Database Connected 🎉!")
 
-	connection.AutoMigrate( 
+	connection.AutoMigrate(
 		&models.Abonnement{},
 		&models.Caisse{},
-		&models.CaisseItem{}, 
+		&models.CaisseItem{},
 		&models.Client{},
 		&models.Commande{},
 		&models.CommandeLine{},
@@ -44,6 +44,10 @@ func Connect() {
 		&models.Restitution{},
 		&models.Stock{},
 		&models.StockEndommage{},
+		&models.Subscription{},
+		&models.SubscriptionHistory{},
+		&models.SubscriptionNotification{},
+		&models.Promotion{},
 		&models.User{},
 	)
 }
