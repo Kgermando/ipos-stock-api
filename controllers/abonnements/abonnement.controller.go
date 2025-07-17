@@ -14,17 +14,22 @@ import (
 func GetAllAbonnements(c *fiber.Ctx) error {
 	db := database.DB
 
-	var data []models.Subscription
-	db.Order("created_at DESC").Find(&data)
+	var abonnements []models.Abonnement
+	if err := db.Preload("Entreprise").Order("created_at DESC").Find(&abonnements).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to get abonnements",
+		})
+	}
 
 	return c.JSON(fiber.Map{
 		"status":  "success",
 		"message": "All Abonnements",
-		"data":    data,
+		"data":    abonnements,
 	})
 }
 
-// GetPaginatedAbonnements récupère les abonnements avec pagination
+// GetPaginatedAbonnements récupère les abonnements avec pagination et filtres
 func GetPaginatedAbonnements(c *fiber.Ctx) error {
 	db := database.DB
 
@@ -38,48 +43,59 @@ func GetPaginatedAbonnements(c *fiber.Ctx) error {
 		limit = 15
 	}
 
-	status := c.Query("status")
-	search := c.Query("search")
+	// Si limit = 0, retourner tous les résultats sans pagination
+	if c.Query("limit") == "0" {
+		limit = 0
+	}
 
-	// Calculate offset
-	offset := (page - 1) * limit
+	statut := c.Query("statut")
+	entrepriseUUID := c.Query("entreprise_uuid")
 
-	query := db.Model(&models.Subscription{})
+	query := db.Model(&models.Abonnement{}).Preload("Entreprise")
 
 	// Apply filters
-	if status != "" {
-		query = query.Where("status = ?", status)
+	if statut != "" {
+		query = query.Where("statut = ?", statut)
 	}
-	if search != "" {
-		query = query.Where("name ILIKE ? OR email ILIKE ?", "%"+search+"%", "%"+search+"%")
+	if entrepriseUUID != "" {
+		query = query.Where("entreprise_uuid = ?", entrepriseUUID)
 	}
 
-	var data []models.Subscription
+	var abonnements []models.Abonnement
 	var total int64
 
 	// Get total count
 	query.Count(&total)
 
-	// Get paginated results
-	query.Order("created_at DESC").
-		Limit(limit).
-		Offset(offset).
-		Find(&data)
+	// Apply pagination only if limit > 0
+	if limit > 0 {
+		offset := (page - 1) * limit
+		query = query.Limit(limit).Offset(offset)
+	}
+
+	// Get results
+	query.Order("created_at DESC").Find(&abonnements)
 
 	// Calculate pagination info
-	totalPages := (int(total) + limit - 1) / limit
-
-	return c.JSON(fiber.Map{
+	response := fiber.Map{
 		"status":  "success",
-		"message": "All Abonnements",
-		"data":    data,
-		"pagination": fiber.Map{
+		"message": "Abonnements retrieved",
+		"data":    abonnements,
+	}
+
+	if limit > 0 {
+		totalPages := (int(total) + limit - 1) / limit
+		response["pagination"] = fiber.Map{
 			"current_page": page,
 			"per_page":     limit,
 			"total":        total,
 			"total_pages":  totalPages,
-		},
-	})
+		}
+	} else {
+		response["total"] = total
+	}
+
+	return c.JSON(response)
 }
 
 // GetAbonnement récupère un abonnement par UUID
@@ -87,8 +103,8 @@ func GetAbonnement(c *fiber.Ctx) error {
 	db := database.DB
 	uuid := c.Params("uuid")
 
-	var data models.Subscription
-	if err := db.Where("uuid = ?", uuid).First(&data).Error; err != nil {
+	var abonnement models.Abonnement
+	if err := db.Preload("Entreprise").Where("uuid = ?", uuid).First(&abonnement).Error; err != nil {
 		return c.Status(404).JSON(fiber.Map{
 			"status":  "error",
 			"message": "Abonnement not found",
@@ -97,7 +113,7 @@ func GetAbonnement(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"status": "success",
-		"data":   data,
+		"data":   abonnement,
 	})
 }
 
@@ -105,16 +121,45 @@ func GetAbonnement(c *fiber.Ctx) error {
 func CreateAbonnement(c *fiber.Ctx) error {
 	db := database.DB
 
-	var data models.Subscription
-	if err := c.BodyParser(&data); err != nil {
+	var abonnement models.Abonnement
+	if err := c.BodyParser(&abonnement); err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"status":  "error",
 			"message": "Invalid JSON",
 		})
 	}
 
+	// Validation des champs requis
+	if abonnement.EntrepriseUUID == "" {
+		return c.Status(400).JSON(fiber.Map{
+			"status":  "error",
+			"message": "EntrepriseUUID is required",
+		})
+	}
+
+	if abonnement.Montant <= 0 {
+		return c.Status(400).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Montant must be greater than 0",
+		})
+	}
+
+	if abonnement.Duree <= 0 {
+		return c.Status(400).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Duree must be greater than 0",
+		})
+	}
+
+	if abonnement.MoyenPayment == "" {
+		return c.Status(400).JSON(fiber.Map{
+			"status":  "error",
+			"message": "MoyenPayment is required",
+		})
+	}
+
 	// Validation
-	if err := utils.ValidateStruct(data); err != nil {
+	if err := utils.ValidateStruct(abonnement); err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"status":  "error",
 			"message": "Validation failed",
@@ -122,22 +167,38 @@ func CreateAbonnement(c *fiber.Ctx) error {
 		})
 	}
 
-	data.UUID = utils.GenerateUUID()
-	data.CreatedAt = time.Now()
-	data.UpdatedAt = time.Now()
-	data.Status = models.StatusPending
+	// Vérifier si l'entreprise existe
+	var entreprise models.Entreprise
+	if err := db.Where("uuid = ?", abonnement.EntrepriseUUID).First(&entreprise).Error; err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Entreprise not found",
+		})
+	}
 
-	if err := db.Create(&data).Error; err != nil {
+	abonnement.UUID = utils.GenerateUUID()
+	abonnement.CreatedAt = time.Now()
+	abonnement.UpdatedAt = time.Now()
+
+	// Définir le statut par défaut si non spécifié
+	if abonnement.Statut == "" {
+		abonnement.Statut = "pending"
+	}
+
+	if err := db.Create(&abonnement).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"status":  "error",
 			"message": "Failed to create abonnement",
 		})
 	}
 
+	// Recharger avec les relations
+	db.Preload("Entreprise").Where("uuid = ?", abonnement.UUID).First(&abonnement)
+
 	return c.Status(201).JSON(fiber.Map{
 		"status":  "success",
 		"message": "Abonnement created successfully",
-		"data":    data,
+		"data":    abonnement,
 	})
 }
 
@@ -146,7 +207,7 @@ func UpdateAbonnement(c *fiber.Ctx) error {
 	db := database.DB
 	uuid := c.Params("uuid")
 
-	var abonnement models.Subscription
+	var abonnement models.Abonnement
 	if err := db.Where("uuid = ?", uuid).First(&abonnement).Error; err != nil {
 		return c.Status(404).JSON(fiber.Map{
 			"status":  "error",
@@ -154,7 +215,7 @@ func UpdateAbonnement(c *fiber.Ctx) error {
 		})
 	}
 
-	var updateData models.Subscription
+	var updateData models.Abonnement
 	if err := c.BodyParser(&updateData); err != nil {
 		return c.Status(400).JSON(fiber.Map{
 			"status":  "error",
@@ -163,15 +224,38 @@ func UpdateAbonnement(c *fiber.Ctx) error {
 	}
 
 	// Update fields
-	abonnement.Name = updateData.Name
-	abonnement.Email = updateData.Email
-	abonnement.Telephone = updateData.Telephone
-	abonnement.Planid = updateData.Planid
-	abonnement.PlanName = updateData.PlanName
-	abonnement.Duration = updateData.Duration
-	abonnement.Amount = updateData.Amount
-	abonnement.PaymentMethod = updateData.PaymentMethod
-	abonnement.Status = updateData.Status
+	if updateData.EntrepriseUUID != "" {
+		// Vérifier si l'entreprise existe
+		var entreprise models.Entreprise
+		if err := db.Where("uuid = ?", updateData.EntrepriseUUID).First(&entreprise).Error; err != nil {
+			return c.Status(400).JSON(fiber.Map{
+				"status":  "error",
+				"message": "Entreprise not found",
+			})
+		}
+		abonnement.EntrepriseUUID = updateData.EntrepriseUUID
+	}
+
+	if updateData.Montant > 0 {
+		abonnement.Montant = updateData.Montant
+	}
+
+	if updateData.MoyenPayment != "" {
+		abonnement.MoyenPayment = updateData.MoyenPayment
+	}
+
+	if updateData.Duree > 0 {
+		abonnement.Duree = updateData.Duree
+	}
+
+	if updateData.Statut != "" {
+		abonnement.Statut = updateData.Statut
+	}
+
+	if updateData.Signature != "" {
+		abonnement.Signature = updateData.Signature
+	}
+
 	abonnement.UpdatedAt = time.Now()
 
 	if err := db.Save(&abonnement).Error; err != nil {
@@ -181,6 +265,9 @@ func UpdateAbonnement(c *fiber.Ctx) error {
 		})
 	}
 
+	// Recharger avec les relations
+	db.Preload("Entreprise").Where("uuid = ?", abonnement.UUID).First(&abonnement)
+
 	return c.JSON(fiber.Map{
 		"status":  "success",
 		"message": "Abonnement updated successfully",
@@ -188,12 +275,12 @@ func UpdateAbonnement(c *fiber.Ctx) error {
 	})
 }
 
-// DeleteAbonnement supprime un abonnement
+// DeleteAbonnement supprime un abonnement (soft delete)
 func DeleteAbonnement(c *fiber.Ctx) error {
 	db := database.DB
 	uuid := c.Params("uuid")
 
-	var abonnement models.Subscription
+	var abonnement models.Abonnement
 	if err := db.Where("uuid = ?", uuid).First(&abonnement).Error; err != nil {
 		return c.Status(404).JSON(fiber.Map{
 			"status":  "error",
@@ -214,8 +301,60 @@ func DeleteAbonnement(c *fiber.Ctx) error {
 	})
 }
 
-// GetCurrentSubscription récupère l'abonnement actuel d'une entreprise
-func GetCurrentSubscription(c *fiber.Ctx) error {
+// UpdateStatutAbonnement met à jour le statut d'un abonnement
+func UpdateStatutAbonnement(c *fiber.Ctx) error {
+	db := database.DB
+	uuid := c.Params("uuid")
+
+	var request struct {
+		Statut string `json:"statut"`
+	}
+
+	if err := c.BodyParser(&request); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Invalid JSON",
+		})
+	}
+
+	if request.Statut == "" {
+		return c.Status(400).JSON(fiber.Map{
+			"status":  "error",
+			"message": "statut is required",
+		})
+	}
+
+	var abonnement models.Abonnement
+	if err := db.Where("uuid = ?", uuid).First(&abonnement).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Abonnement not found",
+		})
+	}
+
+	abonnement.Statut = request.Statut
+	abonnement.UpdatedAt = time.Now()
+
+	if err := db.Save(&abonnement).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to update statut",
+		})
+	}
+
+	// Recharger avec les relations
+	db.Preload("Entreprise").Where("uuid = ?", abonnement.UUID).First(&abonnement)
+
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": "Statut updated successfully",
+		"data":    abonnement,
+	})
+}
+
+// GetAbonnementActuel récupère l'abonnement actuel valide d'une entreprise
+// basé sur la date de création, la durée et le statut
+func GetAbonnementActuel(c *fiber.Ctx) error {
 	db := database.DB
 	entrepriseUUID := c.Query("entreprise_uuid")
 
@@ -226,69 +365,164 @@ func GetCurrentSubscription(c *fiber.Ctx) error {
 		})
 	}
 
-	var subscription models.Subscription
-	if err := db.Where("entreprise_uuid = ? AND status = ?", entrepriseUUID, models.StatusActive).
+	var abonnement models.Abonnement
+
+	// Rechercher l'abonnement actif le plus récent
+	if err := db.Preload("Entreprise").
+		Where("entreprise_uuid = ? AND statut = ?", entrepriseUUID, "active").
 		Order("created_at DESC").
-		First(&subscription).Error; err != nil {
+		First(&abonnement).Error; err != nil {
 		return c.Status(404).JSON(fiber.Map{
 			"status":  "error",
 			"message": "No active subscription found",
 		})
 	}
 
-	return c.JSON(fiber.Map{
-		"status": "success",
-		"data":   subscription,
-	})
-}
+	// Calculer la date d'expiration
+	dateExpiration := abonnement.CreatedAt.AddDate(0, abonnement.Duree, 0)
 
-// GetAvailablePlans récupère les plans disponibles
-func GetAvailablePlans(c *fiber.Ctx) error {
-	// Retourner les plans par défaut
-	plans := []models.SubscriptionPlan{
-		{
-			UUID:        "basic",
-			Name:        "Basic",
-			Description: "Plan de base",
-			Price:       29.99,
-			Currency:    "USD",
-			Duration:    1,
-			MaxUsers:    5,
-			MaxPOS:      2,
-			StorageGB:   10,
-			Features:    []string{"Gestion des stocks", "Ventes", "Support email"},
-			Popular:     false,
-		},
-		{
-			UUID:        "professional",
-			Name:        "Professional",
-			Description: "Plan professionnel",
-			Price:       59.99,
-			Currency:    "USD",
-			Duration:    1,
-			MaxUsers:    15,
-			MaxPOS:      5,
-			StorageGB:   50,
-			Features:    []string{"Toutes fonctionnalités Basic", "Rapports avancés", "Support prioritaire"},
-			Popular:     true,
-		},
-		{
-			UUID:        "enterprise",
-			Name:        "Enterprise",
-			Description: "Plan entreprise",
-			Price:       99.99,
-			Currency:    "USD",
-			Duration:    1,
-			MaxUsers:    -1,
-			MaxPOS:      -1,
-			StorageGB:   200,
-			Features:    []string{"Toutes fonctionnalités Professional", "Support dédié", "API complète"},
-			Popular:     false,
-		},
+	// Vérifier si l'abonnement est encore valide
+	maintenant := time.Now()
+	estValide := maintenant.Before(dateExpiration)
+
+	// Calculer les jours restants
+	joursRestants := int(dateExpiration.Sub(maintenant).Hours() / 24)
+	if joursRestants < 0 {
+		joursRestants = 0
 	}
 
 	return c.JSON(fiber.Map{
 		"status": "success",
-		"data":   plans,
+		"data": fiber.Map{
+			"abonnement":      abonnement,
+			"date_expiration": dateExpiration,
+			"est_valide":      estValide,
+			"jours_restants":  joursRestants,
+			"statut":          abonnement.Statut,
+		},
+	})
+}
+
+// VerifierValiditeAbonnement vérifie si un abonnement est encore valide
+func VerifierValiditeAbonnement(c *fiber.Ctx) error {
+	db := database.DB
+	uuid := c.Params("uuid")
+
+	var abonnement models.Abonnement
+	if err := db.Preload("Entreprise").Where("uuid = ?", uuid).First(&abonnement).Error; err != nil {
+		return c.Status(404).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Abonnement not found",
+		})
+	}
+
+	// Calculer la date d'expiration
+	dateExpiration := abonnement.CreatedAt.AddDate(0, abonnement.Duree, 0)
+
+	// Vérifier si l'abonnement est encore valide
+	maintenant := time.Now()
+	estValide := maintenant.Before(dateExpiration) && abonnement.Statut == "active"
+
+	// Calculer les jours restants
+	joursRestants := int(dateExpiration.Sub(maintenant).Hours() / 24)
+	if joursRestants < 0 {
+		joursRestants = 0
+	}
+
+	return c.JSON(fiber.Map{
+		"status": "success",
+		"data": fiber.Map{
+			"abonnement":      abonnement,
+			"date_expiration": dateExpiration,
+			"est_valide":      estValide,
+			"jours_restants":  joursRestants,
+			"statut":          abonnement.Statut,
+		},
+	})
+}
+
+// GetAbonnementsExpirant récupère les abonnements qui vont expirer dans X jours
+func GetAbonnementsExpirant(c *fiber.Ctx) error {
+	db := database.DB
+
+	// Paramètre pour le nombre de jours (par défaut 30 jours)
+	jours, err := strconv.Atoi(c.Query("jours", "30"))
+	if err != nil || jours < 0 {
+		jours = 30
+	}
+
+	var abonnements []models.Abonnement
+	if err := db.Preload("Entreprise").
+		Where("statut = ?", "active").
+		Find(&abonnements).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to get abonnements",
+		})
+	}
+
+	var abonnementsExpirant []fiber.Map
+	maintenant := time.Now()
+	dateLimite := maintenant.AddDate(0, 0, jours)
+
+	for _, abonnement := range abonnements {
+		dateExpiration := abonnement.CreatedAt.AddDate(0, abonnement.Duree, 0)
+
+		// Vérifier si l'abonnement expire dans les X jours
+		if dateExpiration.After(maintenant) && dateExpiration.Before(dateLimite) {
+			joursRestants := int(dateExpiration.Sub(maintenant).Hours() / 24)
+
+			abonnementsExpirant = append(abonnementsExpirant, fiber.Map{
+				"abonnement":      abonnement,
+				"date_expiration": dateExpiration,
+				"jours_restants":  joursRestants,
+			})
+		}
+	}
+
+	return c.JSON(fiber.Map{
+		"status": "success",
+		"data":   abonnementsExpirant,
+		"count":  len(abonnementsExpirant),
+	})
+}
+
+// GetStatistiquesAbonnements récupère les statistiques des abonnements
+func GetStatistiquesAbonnements(c *fiber.Ctx) error {
+	db := database.DB
+
+	var stats struct {
+		TotalAbonnements   int64   `json:"total_abonnements"`
+		AbonnementsActifs  int64   `json:"abonnements_actifs"`
+		AbonnementsPending int64   `json:"abonnements_pending"`
+		AbonnementsSuspend int64   `json:"abonnements_suspended"`
+		AbonnementsCancel  int64   `json:"abonnements_cancelled"`
+		RevenuTotal        float64 `json:"revenu_total"`
+		RevenuMensuel      float64 `json:"revenu_mensuel"`
+	}
+
+	// Total abonnements
+	db.Model(&models.Abonnement{}).Count(&stats.TotalAbonnements)
+
+	// Abonnements par statut
+	db.Model(&models.Abonnement{}).Where("statut = ?", "active").Count(&stats.AbonnementsActifs)
+	db.Model(&models.Abonnement{}).Where("statut = ?", "pending").Count(&stats.AbonnementsPending)
+	db.Model(&models.Abonnement{}).Where("statut = ?", "suspended").Count(&stats.AbonnementsSuspend)
+	db.Model(&models.Abonnement{}).Where("statut = ?", "cancelled").Count(&stats.AbonnementsCancel)
+
+	// Revenu total
+	db.Model(&models.Abonnement{}).Select("COALESCE(SUM(montant), 0)").Scan(&stats.RevenuTotal)
+
+	// Revenu mensuel (ce mois)
+	debutMois := time.Now().AddDate(0, 0, -time.Now().Day()+1)
+	finMois := debutMois.AddDate(0, 1, -1)
+	db.Model(&models.Abonnement{}).
+		Where("created_at >= ? AND created_at <= ?", debutMois, finMois).
+		Select("COALESCE(SUM(montant), 0)").
+		Scan(&stats.RevenuMensuel)
+
+	return c.JSON(fiber.Map{
+		"status": "success",
+		"data":   stats,
 	})
 }

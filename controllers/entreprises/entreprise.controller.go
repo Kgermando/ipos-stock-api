@@ -1,8 +1,7 @@
 package entreprises
 
 import (
-	"strconv"
-	"time"
+	"strconv" 
 
 	"github.com/kgermando/ipos-stock-api/database"
 	"github.com/kgermando/ipos-stock-api/models"
@@ -33,15 +32,18 @@ func GetPaginatedEntreprise(c *fiber.Ctx) error {
 
 	// Count total records matching the search query
 	db.Model(&models.Entreprise{}).
-		Where("name ILIKE ? OR code ILIKE ?", "%"+search+"%", "%"+search+"%").
+		Where("name ILIKE ? OR rccm ILIKE ? OR id_nat ILIKE ? OR n_impot ILIKE ? OR email ILIKE ? OR telephone ILIKE ?", 
+			"%"+search+"%", "%"+search+"%", "%"+search+"%", "%"+search+"%", "%"+search+"%", "%"+search+"%").
 		Count(&totalRecords)
 
-	err = db.Where("name ILIKE ? OR code ILIKE ?", "%"+search+"%", "%"+search+"%").
+	err = db.Where("name ILIKE ? OR rccm ILIKE ? OR id_nat ILIKE ? OR n_impot ILIKE ? OR email ILIKE ? OR telephone ILIKE ?", 
+			"%"+search+"%", "%"+search+"%", "%"+search+"%", "%"+search+"%", "%"+search+"%", "%"+search+"%").
 		Offset(offset).
 		Limit(limit).
 		Order("entreprises.updated_at DESC").
 		Preload("Users").
 		Preload("Pos").
+		Preload("Abonnement").
 		Find(&dataList).Error
 
 	if err != nil {
@@ -68,8 +70,7 @@ func GetPaginatedEntreprise(c *fiber.Ctx) error {
 		entrepriseInfos = append(entrepriseInfos, models.EntrepriseInfos{
 			UUID:            entreprise.UUID,
 			TypeEntreprise:  entreprise.TypeEntreprise,
-			Name:            entreprise.Name,
-			Code:            entreprise.Code,
+			Name:            entreprise.Name, 
 			Rccm:            entreprise.Rccm,
 			IdNat:           entreprise.IdNat,
 			NImpot:          entreprise.NImpot,
@@ -77,8 +78,11 @@ func GetPaginatedEntreprise(c *fiber.Ctx) error {
 			Email:           entreprise.Email,
 			Telephone:       entreprise.Telephone,
 			Manager:         entreprise.Manager,
-			Status:          entreprise.Status,
-			Signature:       entreprise.Signature,
+			Status:          entreprise.Status, 
+			Currency:        entreprise.Currency,
+			Step:            entreprise.Step,
+			TypeAbonnement:  entreprise.TypeAbonnement,
+
 			TotalUser:       len(entreprise.Users),
 			TotalPos:        len(entreprise.Pos),
 			TotalAbonnement: len(entreprise.Abonnement),
@@ -144,9 +148,7 @@ func CreateEntreprise(c *fiber.Ctx) error {
 		return err
 	}
 
-	p.UUID = utils.GenerateUUID()
-
-	p.Sync = true
+	p.UUID = utils.GenerateUUID() 
 
 	database.DB.Create(p)
 
@@ -165,21 +167,19 @@ func UpdateEntreprise(c *fiber.Ctx) error {
 	db := database.DB
 
 	type UpdateData struct {
-		TypeEntreprise string    `json:"type_entreprise"`
-		Name           string    `json:"name"`
-		Code           uint64    `json:"code"` // Code entreprise
-		Rccm           string    `json:"rccm"`
-		IdNat          string    `json:"idnat"`
-		NImpot         string    `json:"nimpot"`
-		Adresse        string    `json:"adresse"`
-		Email          string    `json:"email"`     // Email officiel
-		Telephone      string    `json:"telephone"` // Telephone officiel
-		Manager        string    `json:"manager"`
-		Status         bool      `json:"status"`
-		Currency       string    `json:"currency"` // Devise de l'entreprise
-		TypeAbonnement string    `json:"type_abonnement"`
-		Abonnement     time.Time `json:"abonnement"`
-		Signature      string    `json:"signature"`
+		TypeEntreprise string `json:"type_entreprise"` // PME, GE, Particulier
+		Name           string `json:"name"`
+		Rccm           string `json:"rccm"`
+		IdNat          string `json:"idnat"`
+		NImpot         string `json:"nimpot"`
+		Adresse        string `json:"adresse"`
+		Email          string `json:"email"`     // Email officiel
+		Telephone      string `json:"telephone"` // Telephone officiel
+		Manager        string `json:"manager"`
+		Status         bool   `json:"status"`
+		Currency       string `json:"currency"`        // Devise de l'entreprise, default CDF
+		Step           int    `json:"step"`            // Etape de l'entreprise dans le processus d'inscription
+		TypeAbonnement string `json:"type_abonnement"` // Pack starter, business, pro, entreprise
 	}
 
 	var updateData UpdateData
@@ -198,8 +198,7 @@ func UpdateEntreprise(c *fiber.Ctx) error {
 
 	db.Where("uuid = ?", uuid).First(&entreprise)
 	entreprise.TypeEntreprise = updateData.TypeEntreprise
-	entreprise.Name = updateData.Name
-	entreprise.Code = updateData.Code
+	entreprise.Name = updateData.Name 
 	entreprise.Rccm = updateData.Rccm
 	entreprise.IdNat = updateData.IdNat
 	entreprise.NImpot = updateData.NImpot
@@ -208,8 +207,9 @@ func UpdateEntreprise(c *fiber.Ctx) error {
 	entreprise.Telephone = updateData.Telephone
 	entreprise.Manager = updateData.Manager
 	entreprise.Status = updateData.Status
-	entreprise.TypeAbonnement = updateData.TypeAbonnement
-	entreprise.Signature = updateData.Signature
+	entreprise.Currency = updateData.Currency
+	entreprise.Step = updateData.Step
+	entreprise.TypeAbonnement = updateData.TypeAbonnement 
 
 	db.Save(&entreprise)
 

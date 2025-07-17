@@ -30,7 +30,8 @@ func Setup(app *fiber.App) {
 	a.Post("/forgot-password", auth.Forgot)
 	a.Post("/reset/:token", auth.ResetPassword)
 
-	a.Post("/entreprise", entreprises.CreateEntreprise)
+	a.Post("/entreprise/create", entreprises.CreateEntreprise)
+	a.Put("/entreprise/update/:uuid", entreprises.UpdateEntreprise)
 
 	// app.Use(middlewares.IsAuthenticated)
 
@@ -227,8 +228,11 @@ func Setup(app *fiber.App) {
 	ab.Post("/create", abonnements.CreateAbonnement)
 	ab.Put("/update/:uuid", abonnements.UpdateAbonnement)
 	ab.Delete("/delete/:uuid", abonnements.DeleteAbonnement)
-	ab.Get("/current", abonnements.GetCurrentSubscription)
-	ab.Get("/plans", abonnements.GetAvailablePlans)
+	ab.Put("/update-statut/:uuid", abonnements.UpdateStatutAbonnement)
+	ab.Get("/current", abonnements.GetAbonnementActuel)
+	ab.Get("/verify/:uuid", abonnements.VerifierValiditeAbonnement)
+	ab.Get("/expiring", abonnements.GetAbonnementsExpirant)
+	ab.Get("/statistics", abonnements.GetStatistiquesAbonnements)
 
 	// Subscriptions controller
 	sub := api.Group("/subscriptions")
@@ -240,7 +244,7 @@ func Setup(app *fiber.App) {
 	sub.Get("/default-plans", subscriptions.GetDefaultPlans)
 
 	// Subscription admin controller
-	subAdmin := api.Group("/subscriptions/admin")
+	subAdmin := sub.Group("/admin")
 	subAdmin.Get("/all", subscriptions.GetSubscriptionsForAdmin)
 	subAdmin.Get("/get/:uuid", subscriptions.GetSubscriptionByIDAdmin)
 	subAdmin.Post("/approve/:uuid", subscriptions.ApproveSubscription)
