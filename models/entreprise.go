@@ -18,8 +18,8 @@ type Entreprise struct {
 	IdNat          string `json:"idnat"`
 	NImpot         string `json:"nimpot"`
 	Adresse        string `json:"adresse"`
-	Email          string `json:"email"`                     // Email officiel
-	Telephone      string `gorm:"not null" json:"telephone"` // Telephone officiel
+	Email          string `json:"email"`                     // Email officiel doit etre unique
+	Telephone      string `gorm:"not null" json:"telephone"` // Telephone officiel doit etre unique
 	Manager        string `gorm:"not null" json:"manager"`
 	Status         bool   `gorm:"not null" json:"status"`
 	Currency       string `gorm:"not null;default:CDF" json:"currency"` // Devise de l'entreprise, default CDF
