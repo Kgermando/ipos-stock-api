@@ -48,6 +48,20 @@ func Setup(app *fiber.App) {
 	e.Put("/update/:uuid", entreprises.UpdateEntreprise)
 	e.Delete("/delete/:uuid", entreprises.DeleteEntreprise)
 
+	// Abonnements controller
+	ab := api.Group("/abonnements")
+	ab.Get("/all", abonnements.GetAllAbonnements)
+	ab.Get("/all/paginate", abonnements.GetPaginatedAbonnements)
+	ab.Get("/get/:uuid", abonnements.GetAbonnement)
+	ab.Post("/create", abonnements.CreateAbonnement)
+	ab.Put("/update/:uuid", abonnements.UpdateAbonnement)
+	ab.Delete("/delete/:uuid", abonnements.DeleteAbonnement)
+	ab.Put("/update-statut/:uuid", abonnements.UpdateStatutAbonnement)
+	ab.Get("/current", abonnements.GetAbonnementActuel)
+	ab.Get("/verify/:uuid", abonnements.VerifierValiditeAbonnement)
+	ab.Get("/expiring", abonnements.GetAbonnementsExpirant)
+	ab.Get("/statistics", abonnements.GetStatistiquesAbonnements)
+
 	// Users controller
 	u := api.Group("/users")
 	u.Get("/all", users.GetAllUsers)
@@ -218,19 +232,5 @@ func Setup(app *fiber.App) {
 	// Endpoints legacy pour compatibilité
 	kpi.Get("/global", dashboard.GlobalKpiSummary)
 	kpi.Get("/best-selling-prroduct", dashboard.BestSellingProduct)
-
-	// Abonnements controller
-	ab := api.Group("/abonnements")
-	ab.Get("/all", abonnements.GetAllAbonnements)
-	ab.Get("/all/paginate", abonnements.GetPaginatedAbonnements)
-	ab.Get("/get/:uuid", abonnements.GetAbonnement)
-	ab.Post("/create", abonnements.CreateAbonnement)
-	ab.Put("/update/:uuid", abonnements.UpdateAbonnement)
-	ab.Delete("/delete/:uuid", abonnements.DeleteAbonnement)
-	ab.Put("/update-statut/:uuid", abonnements.UpdateStatutAbonnement)
-	ab.Get("/current", abonnements.GetAbonnementActuel)
-	ab.Get("/verify/:uuid", abonnements.VerifierValiditeAbonnement)
-	ab.Get("/expiring", abonnements.GetAbonnementsExpirant)
-	ab.Get("/statistics", abonnements.GetStatistiquesAbonnements)
 
 }
