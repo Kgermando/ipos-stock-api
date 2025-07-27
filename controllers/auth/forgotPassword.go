@@ -73,7 +73,7 @@ func Forgot(c *fiber.Ctx) error {
 
 func ResetPassword(c *fiber.Ctx) error {
 
-	rp := &models.PasswordReset{}
+	rp := &models.PasswordReset{} 
 
 	if err := database.DB.Where("token = ?", c.Params("token")).Last(rp); err.Error != nil {
 		c.Status(400)

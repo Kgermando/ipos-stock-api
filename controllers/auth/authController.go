@@ -79,7 +79,10 @@ func Login(c *fiber.Ctx) error {
 
 	u := &models.User{}
 
-	database.DB.Where("email = ? OR telephone = ?", lu.Identifier, lu.Identifier).First(&u)
+	database.DB.Where("email = ? OR telephone = ?", lu.Identifier, lu.Identifier).
+		Preload("Entreprise").
+		Preload("Pos").
+		First(&u)
 
 	if u.UUID == "00000000-0000-0000-0000-000000000000" {
 		c.Status(404)
@@ -99,6 +102,14 @@ func Login(c *fiber.Ctx) error {
 		c.Status(400)
 		return c.JSON(fiber.Map{
 			"message": "vous n'êtes pas autorisé de se connecter 😰",
+		})
+	}
+
+	// Vérifier le statut de l'entreprise
+	if !u.Entreprise.Status {
+		c.Status(400)
+		return c.JSON(fiber.Map{
+			"message": "votre entreprise n'est pas autorisée à accéder au système 😰",
 		})
 	}
 
