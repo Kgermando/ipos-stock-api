@@ -13,7 +13,6 @@ import (
 	"github.com/kgermando/ipos-stock-api/controllers/pos"
 	"github.com/kgermando/ipos-stock-api/controllers/products"
 	"github.com/kgermando/ipos-stock-api/controllers/stocks"
-	"github.com/kgermando/ipos-stock-api/controllers/subscriptions"
 	"github.com/kgermando/ipos-stock-api/controllers/users"
 
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -233,24 +232,5 @@ func Setup(app *fiber.App) {
 	ab.Get("/verify/:uuid", abonnements.VerifierValiditeAbonnement)
 	ab.Get("/expiring", abonnements.GetAbonnementsExpirant)
 	ab.Get("/statistics", abonnements.GetStatistiquesAbonnements)
-
-	// Subscriptions controller
-	sub := api.Group("/subscriptions")
-	sub.Post("/create", subscriptions.CreateSubscription)
-	sub.Get("/get/:uuid", subscriptions.GetSubscriptionByID)
-	sub.Put("/update-plan/:uuid", subscriptions.UpdateSubscriptionPlan)
-	sub.Post("/process-payment/:uuid", subscriptions.ProcessPayment)
-	sub.Post("/confirm-payment/:uuid", subscriptions.ConfirmPayment)
-	sub.Get("/default-plans", subscriptions.GetDefaultPlans)
-
-	// Subscription admin controller
-	subAdmin := sub.Group("/admin")
-	subAdmin.Get("/all", subscriptions.GetSubscriptionsForAdmin)
-	subAdmin.Get("/get/:uuid", subscriptions.GetSubscriptionByIDAdmin)
-	subAdmin.Post("/approve/:uuid", subscriptions.ApproveSubscription)
-	subAdmin.Post("/reject/:uuid", subscriptions.RejectSubscription)
-	subAdmin.Post("/suspend/:uuid", subscriptions.SuspendSubscription)
-	subAdmin.Get("/stats", subscriptions.GetSubscriptionStatsAdmin)
-	subAdmin.Put("/update/:uuid", subscriptions.UpdateSubscriptionAdmin)
 
 }

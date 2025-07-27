@@ -44,10 +44,6 @@ func Connect() {
 		&models.Restitution{},
 		&models.Stock{},
 		&models.StockEndommage{},
-		&models.Subscription{},
-		&models.SubscriptionHistory{},
-		&models.SubscriptionNotification{},
-		&models.Promotion{},
 		&models.User{},
 	)
 }
