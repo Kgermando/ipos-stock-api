@@ -52,6 +52,7 @@ func Setup(app *fiber.App) {
 	ab := api.Group("/abonnements")
 	ab.Get("/all", abonnements.GetAllAbonnements)
 	ab.Get("/all/paginate", abonnements.GetPaginatedAbonnements)
+	ab.Get("/all/paginate/:entreprise_uuid", abonnements.GetPaginatedAbonnementsEntreprise)
 	ab.Get("/get/:uuid", abonnements.GetAbonnement)
 	ab.Post("/create", abonnements.CreateAbonnement)
 	ab.Put("/update/:uuid", abonnements.UpdateAbonnement)
@@ -65,6 +66,7 @@ func Setup(app *fiber.App) {
 	// Users controller
 	u := api.Group("/users")
 	u.Get("/all", users.GetAllUsers)
+	u.Get("/all/:entreprise_uuid", users.GetAllUsersById)
 	u.Get("/all/paginate/nosearch", users.GetPaginatedNoSerach)
 	u.Get("/:entreprise_uuid/all/paginate", users.GetPaginatedUsers)
 	u.Get("/:entreprise_uuid/:pos_uuid/all/paginate", users.GetPaginatedUserByPosUUID)

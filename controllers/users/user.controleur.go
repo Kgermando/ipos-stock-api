@@ -213,6 +213,19 @@ func GetAllUsers(c *fiber.Ctx) error {
 	})
 }
 
+func GetAllUsersById(c *fiber.Ctx) error {
+	db := database.DB
+	uuid := c.Params("entreprise_uuid")
+
+	var users []models.User
+	db.Where("entreprise_uuid = ?", uuid).Find(&users)
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": "All users",
+		"data":    users,
+	})
+}
+
 // Get one data
 func GetUser(c *fiber.Ctx) error {
 	uuid := c.Params("uuid")

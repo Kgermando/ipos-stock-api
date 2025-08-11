@@ -42,6 +42,69 @@ func GetPaginatedAbonnements(c *fiber.Ctx) error {
 	if err != nil || limit <= 0 {
 		limit = 15
 	}
+	offset := (page - 1) * limit
+
+	search := c.Query("search", "")
+
+	var abonnements []models.Abonnement
+	var totalRecords int64
+
+	// Count total records matching the search query
+	db.Model(&models.Abonnement{}).
+		Joins("LEFT JOIN entreprises ON abonnements.entreprise_uuid = entreprises.uuid").
+		Where("entreprises.name ILIKE ? OR abonnements.moyen_payment ILIKE ? OR abonnements.statut ILIKE ?",
+			"%"+search+"%", "%"+search+"%", "%"+search+"%").
+		Count(&totalRecords)
+
+	err = db.Joins("LEFT JOIN entreprises ON abonnements.entreprise_uuid = entreprises.uuid").
+		Where("entreprises.name ILIKE ? OR abonnements.moyen_payment ILIKE ? OR abonnements.statut ILIKE ?",
+			"%"+search+"%", "%"+search+"%", "%"+search+"%").
+		Offset(offset).
+		Limit(limit).
+		Order("abonnements.created_at DESC").
+		Preload("Entreprise").
+		Find(&abonnements).Error
+
+	if err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Failed to fetch abonnements",
+			"error":   err.Error(),
+		})
+	}
+
+	// Calculate total pages
+	totalPages := int((totalRecords + int64(limit) - 1) / int64(limit))
+
+	// Prepare pagination metadata
+	pagination := map[string]interface{}{
+		"total_records": totalRecords,
+		"total_pages":   totalPages,
+		"current_page":  page,
+		"page_size":     limit,
+	}
+
+	return c.JSON(fiber.Map{
+		"status":     "success",
+		"message":    "All abonnements",
+		"data":       abonnements,
+		"pagination": pagination,
+	})
+}
+
+// GetPaginatedAbonnements récupère les abonnements avec pagination et filtres
+func GetPaginatedAbonnementsEntreprise(c *fiber.Ctx) error {
+	db := database.DB
+
+	// Parse query parameters for pagination
+	page, err := strconv.Atoi(c.Query("page", "1"))
+	if err != nil || page <= 0 {
+		page = 1
+	}
+	limit, err := strconv.Atoi(c.Query("limit", "15"))
+	if err != nil || limit <= 0 {
+		limit = 15
+	}
 
 	// Si limit = 0, retourner tous les résultats sans pagination
 	if c.Query("limit") == "0" {
