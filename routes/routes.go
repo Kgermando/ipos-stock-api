@@ -66,11 +66,11 @@ func Setup(app *fiber.App) {
 	// Users controller
 	u := api.Group("/users")
 	u.Get("/all", users.GetAllUsers)
+	u.Get("/all/paginate", users.GetPaginatedUsersSupport)
 	u.Get("/all/:entreprise_uuid", users.GetAllUsersById)
 	u.Get("/all/paginate/nosearch", users.GetPaginatedNoSerach)
 	u.Get("/:entreprise_uuid/all/paginate", users.GetPaginatedUsers)
-	u.Get("/:entreprise_uuid/:pos_uuid/all/paginate", users.GetPaginatedUserByPosUUID)
-	u.Get("/all/paginate", users.GetPaginatedUsersSupport)
+	u.Get("/:entreprise_uuid/:pos_uuid/all/paginate", users.GetPaginatedUserByPosUUID) 
 	u.Get("/get/:uuid", users.GetUser)
 	u.Post("/create", users.CreateUser)
 	u.Put("/update/:uuid", users.UpdateUser)
