@@ -3,7 +3,6 @@ package auth
 import (
 	"fmt"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -79,12 +78,12 @@ func Login(c *fiber.Ctx) error {
 
 	u := &models.User{}
 
-	database.DB.Where("email = ? OR telephone = ?", lu.Identifier, lu.Identifier).
+	result := database.DB.Where("email = ? OR telephone = ?", lu.Identifier, lu.Identifier).
 		Preload("Entreprise").
 		Preload("Pos").
 		First(&u)
 
-	if u.UUID == "00000000-0000-0000-0000-000000000000" {
+	if result.Error != nil {
 		c.Status(404)
 		return c.JSON(fiber.Map{
 			"message": "invalid email or telephone 😰",
@@ -197,15 +196,22 @@ func UpdateInfo(c *fiber.Ctx) error {
 
 	cookie := c.Cookies("token")
 
-	Id, _ := utils.VerifyJwt(cookie)
-
-	UserUUID, _ := strconv.Atoi(Id)
+	UserUUID, _ := utils.VerifyJwt(cookie)
 
 	user := new(models.User)
 
 	db := database.DB
 
-	db.First(&user, UserUUID)
+	// Utiliser UUID au lieu de convertir en int
+	result := db.Where("uuid = ?", UserUUID).First(&user)
+
+	if result.Error != nil {
+		return c.Status(404).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Utilisateur non trouvé",
+		})
+	}
+
 	user.Fullname = updateData.Fullname
 	user.Email = updateData.Email
 	user.Telephone = updateData.Telephone
@@ -243,7 +249,16 @@ func ChangePassword(c *fiber.Ctx) error {
 
 	user := new(models.User)
 
-	database.DB.Where("id = ?", UserUUID).First(&user)
+	// Utiliser UUID au lieu de id car c'est la clé primaire du modèle User
+	result := database.DB.Where("uuid = ?", UserUUID).First(&user)
+
+	if result.Error != nil {
+		c.Status(404)
+		return c.JSON(fiber.Map{
+			"status":  "error",
+			"message": "Utilisateur non trouvé",
+		})
+	}
 
 	if err := user.ComparePassword(updateData.OldPassword); err != nil {
 		c.Status(400)
@@ -259,26 +274,15 @@ func ChangePassword(c *fiber.Ctx) error {
 		})
 	}
 
-	p, err := utils.HashPassword(updateData.Password)
-	if err != nil {
-		return err
-	}
+	// Utiliser la méthode SetPassword du modèle au lieu de utils.HashPassword
+	user.SetPassword(updateData.Password)
 
 	db := database.DB
-	db.Where("uuid = ?", user.UUID).First(&user)
-	user.Password = p
-
 	db.Save(&user)
 
-	// successful update remove cookies
-	rmCookie := fiber.Cookie{
-		Name:     "token",
-		Value:    "",
-		Expires:  time.Now().Add(-time.Hour), //1 day ,
-		HTTPOnly: true,
-	}
-	c.Cookie(&rmCookie)
-
-	return c.JSON(user)
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": "Mot de passe modifié avec succès",
+	})
 
 }
