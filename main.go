@@ -34,7 +34,7 @@ func main() {
 
 	// Middleware
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "https://ipos-stock.onrender.com, http://localhost:4200, http://192.168.125.185:4200",
+		AllowOrigins:     "https://ipos-stock.onrender.com, https://www.ipos-stock.app, https://ipos-stock.app, http://localhost:4200, http://192.168.125.185:4200",
 		AllowHeaders:     "Origin, Content-Type, Accept, Authorization, Expires, Cache-Control, Pragma",
 		AllowCredentials: true,
 		AllowMethods: strings.Join([]string{
