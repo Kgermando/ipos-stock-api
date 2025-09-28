@@ -6,7 +6,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 )
-
+  
 // Synchronisation Send data to Local
 func GetDataSynchronisation(c *fiber.Ctx) error {
 	db := database.DB
@@ -16,12 +16,22 @@ func GetDataSynchronisation(c *fiber.Ctx) error {
 	sync_created := c.Query("sync_created", "2023-01-01")
 
 	var data []models.Caisse
-	db.Unscoped().Where("entreprise_uuid = ?", entrepriseUUID).
-		Where("pos_uuid = ?", posUUID).
-		Where("created_at > ?", sync_created).
-		Order("caisses.updated_at DESC").
-		Preload("Pos").
-		Find(&data)
+
+	if posUUID == "-" {
+		db.Unscoped().Where("entreprise_uuid = ?", entrepriseUUID).
+			Where("created_at > ?", sync_created).
+			Order("caisses.updated_at DESC").
+			Preload("Pos").
+			Find(&data)
+	} else {
+		db.Unscoped().Where("entreprise_uuid = ?", entrepriseUUID).
+			Where("pos_uuid = ?", posUUID).
+			Where("created_at > ?", sync_created).
+			Order("caisses.updated_at DESC").
+			Preload("Pos").
+			Find(&data)
+	}
+
 	return c.JSON(fiber.Map{
 		"status":  "success",
 		"message": "All Caisses",
@@ -61,11 +71,11 @@ func GetTotalAllCaisses(c *fiber.Ctx) error {
 	pourcent = solde * 100 / (totalEntree + totalSortie)
 
 	response := map[string]interface{}{
-		"total":       total,
-		"totalentree": totalEntree,
-		"totalsortie": totalSortie,
-		"solde":       solde,
-		"pourcent":    pourcent,
+		"total":         total,
+		"totalentree":   totalEntree,
+		"totalsortie":   totalSortie,
+		"solde":         solde,
+		"pourcent":      pourcent,
 		"montant_debut": totalMontantDebut,
 	}
 
@@ -187,12 +197,12 @@ func UpdateCaisse(c *fiber.Ctx) error {
 	db := database.DB
 
 	type UpdateData struct {
-		Name           string  `json:"name"`            // Nom de la caisse
+		Name string `json:"name"` // Nom de la caisse
 		// Entree         float64 `json:"entree"`          // Montant d'entrée
 		// Sortie         float64 `json:"sortie"`          // Montant de sortie
-		Signature      string  `json:"signature"`       // Signature de la transaction
-		PosUUID        string  `json:"pos_uuid"`        // ID du point de vente
-		EntrepriseUUID string  `json:"entreprise_uuid"` // ID de l'entreprise
+		Signature      string `json:"signature"`       // Signature de la transaction
+		PosUUID        string `json:"pos_uuid"`        // ID du point de vente
+		EntrepriseUUID string `json:"entreprise_uuid"` // ID de l'entreprise
 	}
 
 	var updateData UpdateData
