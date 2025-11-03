@@ -10,6 +10,7 @@ import (
 	"github.com/kgermando/ipos-stock-api/controllers/dashboard"
 	"github.com/kgermando/ipos-stock-api/controllers/entreprises"
 	"github.com/kgermando/ipos-stock-api/controllers/fournisseurs"
+	"github.com/kgermando/ipos-stock-api/controllers/plats"
 	"github.com/kgermando/ipos-stock-api/controllers/pos"
 	"github.com/kgermando/ipos-stock-api/controllers/products"
 	"github.com/kgermando/ipos-stock-api/controllers/stocks"
@@ -125,6 +126,20 @@ func Setup(app *fiber.App) {
 	pr.Put("/update/stock-endommage/:uuid", products.UpdateProductStockEndommage)
 	pr.Put("/update/restitution/:uuid", products.UpdateProductRestitution)
 	pr.Delete("/delete/:uuid", products.DeleteProduct)
+
+	// Plat controller
+	pl := api.Group("/plats")
+	pl.Get("/:entreprise_uuid/all/paginate", plats.GetPaginatedPlatEntreprise)
+	pl.Get("/:entreprise_uuid/:pos_uuid/all", plats.GetAllPlats)
+	pl.Get("/:entreprise_uuid/:pos_uuid/all/available", plats.GetAvailablePlats)
+	pl.Get("/:entreprise_uuid/:pos_uuid/all/paginate", plats.GetPaginatedPlatByPosUUID)
+	pl.Get("/:entreprise_uuid/:pos_uuid/all/search", plats.GetAllPlatBySearch)
+	pl.Get("/:entreprise_uuid/:pos_uuid/all/synchronisation", plats.GetDataSynchronisation)
+	pl.Get("/get/:uuid", plats.GetPlat)
+	pl.Post("/create", plats.CreatePlat)
+	pl.Put("/update/:uuid", plats.UpdatePlat)
+	pl.Put("/update/availability/:uuid", plats.UpdatePlatAvailability)
+	pl.Delete("/delete/:uuid", plats.DeletePlat)
 
 	// Stock controller
 	s := api.Group("/stocks")

@@ -77,6 +77,7 @@ func GetPaginatedFournisseur(c *fiber.Ctx) error {
 		Offset(offset).
 		Limit(limit).
 		Order("fournisseurs.updated_at DESC").
+		Preload("Pos").
 		Find(&dataList).Error
 
 	if err != nil {
@@ -126,7 +127,10 @@ func GetFournisseur(c *fiber.Ctx) error {
 	db := database.DB
 
 	var fournisseur models.Fournisseur
-	db.Where("uuid = ?", uuid).First(&fournisseur)
+	db.Where("uuid = ?", uuid).
+	Preload("Pos").
+	Preload("Stocks.Product").
+	First(&fournisseur)
 	if fournisseur.EntrepriseName == "" {
 		return c.Status(404).JSON(
 			fiber.Map{

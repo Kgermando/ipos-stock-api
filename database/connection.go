@@ -39,6 +39,7 @@ func Connect() {
 		&models.CommandeLine{},
 		&models.Entreprise{},
 		&models.Fournisseur{},
+		&models.Plat{},
 		&models.Pos{},
 		&models.Product{},
 		&models.Restitution{},
