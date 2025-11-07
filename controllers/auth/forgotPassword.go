@@ -1,7 +1,7 @@
 package auth
 
 import (
-	"net/smtp"
+	"log"
 	"time"
 
 	"github.com/kgermando/ipos-stock-api/database"
@@ -9,109 +9,253 @@ import (
 	"github.com/kgermando/ipos-stock-api/utils"
 
 	"github.com/gofiber/fiber/v2"
-	"github.com/subosito/gotenv"
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
 )
 
+// Forgot gère la demande de réinitialisation de mot de passe
 func Forgot(c *fiber.Ctx) error {
-	gotenv.Load()
-	u := new(models.PasswordReset)
+	var req models.ForgotPasswordRequest
 
-	if err := c.BodyParser(&u); err != nil {
-		return err
-	}
-
-	token := utils.GenerateRandomString(12)
-
-	pr := &models.PasswordReset{
-		Email: u.Email,
-		Token: token,
-	}
-
-	// search for the email in the database, if the user exist
-	um := &models.User{}
-
-	database.DB.Where("email = ?", u.Email).First(um)
-	if um.UUID == "" {
-		c.Status(400)
-		return c.JSON(fiber.Map{
-			"message": "invalid email address 😰",
+	// Parsing des données JSON
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Données JSON invalides",
+			"errors":  err.Error(),
 		})
 	}
 
-	// token expiration time is 3hr
-	pr.ExpirationTime = time.Now().Add(time.Hour * time.Duration(3))
-	pr.CreatedAt = time.Now()
-
-	database.DB.Create(pr)
-
-	from := utils.Env("EMAIL_FROM")
-
-	to := []string{
-		u.Email,
+	// Validation des données d'entrée
+	if err := utils.ValidateStruct(req); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Données invalides",
+			"errors":  err,
+		})
 	}
 
-	auth := smtp.PlainAuth("", utils.Env("EMAIL_USERNAME"), utils.Env("EMAIL_PASSWORD"), utils.Env("EMAIL_HOST"))
+	// Recherche de l'employé dans la base de données
+	user := &models.User{}
+	result := database.DB.Where("email = ?", req.Email).First(user)
 
-	url := utils.Env("RESET_URL") + token
+	// Si l'employé n'existe pas, on retourne toujours le même message pour éviter l'énumération d'emails
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return c.JSON(fiber.Map{
+				"status":  "success",
+				"message": "Si cette adresse email existe dans notre système, vous recevrez un lien de réinitialisation",
+			})
+		}
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Erreur de base de données",
+		})
+	}
 
-	msg := []byte("Click <a href=\"" + url + "\">here</a> to reset your password!")
+	// Vérification du statut de l'employé
+	if !user.Status {
+		return c.JSON(fiber.Map{
+			"status":  "success",
+			"message": "Si cette adresse email existe dans notre système, vous recevrez un lien de réinitialisation",
+		})
+	}
 
-	err := smtp.SendMail(utils.Env("EMAIL_HOST")+":"+utils.Env("EMAIL_PORT"), auth, from, to, msg)
+	// Invalidation des anciens tokens pour cet email
+	database.DB.Model(&models.PasswordReset{}).
+		Where("email = ? AND used = false AND expiration_time > ?", req.Email, time.Now()).
+		Update("used", true)
+
+	// Génération d'un token sécurisé
+	token, err := utils.GenerateSecureToken(32) // 64 caractères hex
 	if err != nil {
-		c.Status(400)
-		return c.JSON(fiber.Map{
-			"message": "email was not sent 😰",
+		log.Printf("Erreur génération token: %v", err)
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Erreur interne du serveur",
 		})
 	}
+
+	// Création de l'enregistrement de réinitialisation
+	passwordReset := &models.PasswordReset{
+		UUID:           utils.GenerateUUID(),
+		Email:          req.Email,
+		Token:          token,
+		ExpirationTime: time.Now().Add(time.Hour * 3), // 3 heures
+		Used:           false,
+		CreatedAt:      time.Now(),
+	}
+
+	// Sauvegarde en base de données
+	if err := database.DB.Create(passwordReset).Error; err != nil {
+		log.Printf("Erreur sauvegarde password reset: %v", err)
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Erreur lors de la sauvegarde",
+		})
+	}
+
+	// Envoi de l'email de réinitialisation
+	emailService := utils.NewEmailService()
+	userFullName := user.Fullname
+	if err := emailService.SendPasswordResetEmail(req.Email, token, userFullName); err != nil {
+		log.Printf("Erreur envoi email: %v", err)
+		// On supprime le token si l'email n'a pas pu être envoyé
+		database.DB.Delete(&passwordReset)
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Erreur lors de l'envoi de l'email",
+		})
+	}
+
+	// Nettoyage des anciens tokens expirés (asynchrone)
+	go cleanupExpiredTokens()
 
 	return c.JSON(fiber.Map{
-		"message": "success",
+		"status":  "success",
+		"message": "Si cette adresse email existe dans notre système, vous recevrez un lien de réinitialisation dans quelques minutes",
 	})
-
 }
 
+// ResetPassword gère la réinitialisation effective du mot de passe
 func ResetPassword(c *fiber.Ctx) error {
-
-	rp := &models.PasswordReset{} 
-
-	if err := database.DB.Where("token = ?", c.Params("token")).Last(rp); err.Error != nil {
-		c.Status(400)
-		return c.JSON(fiber.Map{
-			"message": "invalid token",
+	token := c.Params("token")
+	if token == "" {
+		return c.Status(400).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Token requis",
 		})
 	}
 
-	if rp.Id == "" {
-		c.Status(400)
-		return c.JSON(fiber.Map{
-			"message": "invalid token",
+	var resetData models.Reset
+	if err := c.BodyParser(&resetData); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Données JSON invalides",
+			"errors":  err.Error(),
 		})
 	}
 
-	now, _ := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
-
-	if now.After(rp.ExpirationTime) {
-		c.Status(400)
-		return c.JSON(fiber.Map{
-			"message": "token has expired",
+	// Validation des données d'entrée
+	if err := utils.ValidateStruct(resetData); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Données invalides",
+			"errors":  err,
 		})
 	}
 
-	r := new(models.Reset)
-
-	if r.Password != r.PasswordConfirm {
-		c.Status(400)
-		return c.JSON(fiber.Map{
-			"message": "password does not match",
+	// Vérification que les mots de passe correspondent
+	if resetData.Password != resetData.PasswordConfirm {
+		return c.Status(400).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Les mots de passe ne correspondent pas",
 		})
 	}
 
-	password, _ := bcrypt.GenerateFromPassword([]byte(r.Password), 14)
-	database.DB.Model(&models.User{}).Where("email = ?", rp.Email).Update("password", password)
+	// Validation de la force du mot de passe
+	if err := utils.ValidatePassword(resetData.Password); err != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"status":  "error",
+			"message": err.Error(),
+		})
+	}
+
+	// Recherche du token valide
+	passwordReset := &models.PasswordReset{}
+	result := database.DB.Where("token = ? AND used = false", token).First(passwordReset)
+
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return c.Status(400).JSON(fiber.Map{
+				"status":  "error",
+				"message": "Token invalide ou expiré",
+			})
+		}
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Erreur de base de données",
+		})
+	}
+
+	// Vérification de l'expiration
+	if time.Now().After(passwordReset.ExpirationTime) {
+		// Marquer le token comme utilisé
+		database.DB.Model(passwordReset).Update("used", true)
+		return c.Status(400).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Le token a expiré",
+		})
+	}
+
+	// Recherche de l'employé
+	user := &models.User{}
+	result = database.DB.Where("email = ?", passwordReset.Email).First(user)
+	if result.Error != nil {
+		return c.Status(400).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Utilisateur non trouvé",
+		})
+	}
+
+	// Début de transaction
+	tx := database.DB.Begin()
+	defer func() {
+		if r := recover(); r != nil {
+			tx.Rollback()
+		}
+	}()
+
+	// Hachage du nouveau mot de passe
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(resetData.Password), 14)
+	if err != nil {
+		tx.Rollback()
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Erreur lors du hachage du mot de passe",
+		})
+	}
+
+	// Mise à jour du mot de passe
+	if err := tx.Model(user).Update("password", string(hashedPassword)).Error; err != nil {
+		tx.Rollback()
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Erreur lors de la mise à jour du mot de passe",
+		})
+	}
+
+	// Marquer le token comme utilisé
+	if err := tx.Model(passwordReset).Update("used", true).Error; err != nil {
+		tx.Rollback()
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Erreur lors de la mise à jour du token",
+		})
+	}
+
+	// Invalidation de tous les autres tokens de cet utilisateur
+	tx.Model(&models.PasswordReset{}).
+		Where("email = ? AND uuid != ? AND used = false", passwordReset.Email, passwordReset.UUID).
+		Update("used", true)
+
+	// Validation de la transaction
+	if err := tx.Commit().Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{
+			"status":  "error",
+			"message": "Erreur lors de la sauvegarde",
+		})
+	}
 
 	return c.JSON(fiber.Map{
-		"message": "success",
+		"status":  "success",
+		"message": "Mot de passe réinitialisé avec succès",
 	})
+}
 
+// cleanupExpiredTokens supprime les tokens expirés (fonction utilitaire)
+func cleanupExpiredTokens() {
+	cutoffTime := time.Now().Add(-24 * time.Hour)
+	database.DB.Where("expiration_time < ? OR used = true", cutoffTime).
+		Delete(&models.PasswordReset{})
 }

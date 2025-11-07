@@ -14,6 +14,7 @@ import (
 	"github.com/kgermando/ipos-stock-api/controllers/pos"
 	"github.com/kgermando/ipos-stock-api/controllers/products"
 	"github.com/kgermando/ipos-stock-api/controllers/stocks"
+	tablebox "github.com/kgermando/ipos-stock-api/controllers/tableBox"
 	"github.com/kgermando/ipos-stock-api/controllers/users"
 
 	"github.com/gofiber/fiber/v2/middleware/logger"
@@ -28,6 +29,7 @@ func Setup(app *fiber.App) {
 	a.Post("/register", auth.Register)
 	a.Post("/login", auth.Login)
 	a.Post("/forgot-password", auth.Forgot)
+	a.Get("/verify-reset-token/:token", auth.VerifyResetToken)
 	a.Post("/reset/:token", auth.ResetPassword)
 
 	a.Post("/entreprise/create", entreprises.CreateEntreprise)
@@ -140,6 +142,19 @@ func Setup(app *fiber.App) {
 	pl.Put("/update/:uuid", plats.UpdatePlat)
 	pl.Put("/update/availability/:uuid", plats.UpdatePlatAvailability)
 	pl.Delete("/delete/:uuid", plats.DeletePlat)
+
+	// TableBox controller
+	tb := api.Group("/tablebox")
+	tb.Get("/:entreprise_uuid/all/paginate", tablebox.GetPaginatedTableBoxEntreprise)
+	tb.Get("/:entreprise_uuid/:pos_uuid/all", tablebox.GetAllTableBoxs)
+	tb.Get("/:entreprise_uuid/:pos_uuid/all/paginate", tablebox.GetPaginatedTableBoxByPosUUID)
+	tb.Get("/:entreprise_uuid/:pos_uuid/all/search", tablebox.GetAllTableBoxBySearch)
+	tb.Get("/:entreprise_uuid/:pos_uuid/all/synchronisation", tablebox.GetDataSynchronisation)
+	tb.Get("/:entreprise_uuid/:pos_uuid/category/:category", tablebox.GetTableBoxsByCategory)
+	tb.Get("/get/:uuid", tablebox.GetTableBox)
+	tb.Post("/create", tablebox.CreateTableBox)
+	tb.Put("/update/:uuid", tablebox.UpdateTableBox)
+	tb.Delete("/delete/:uuid", tablebox.DeleteTableBox)
 
 	// Stock controller
 	s := api.Group("/stocks")

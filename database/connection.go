@@ -39,6 +39,7 @@ func Connect() {
 		&models.CommandeLine{},
 		&models.Entreprise{},
 		&models.Fournisseur{},
+		&models.PasswordReset{},
 		&models.Plat{},
 		&models.Pos{},
 		&models.Product{},
@@ -46,5 +47,6 @@ func Connect() {
 		&models.Stock{},
 		&models.StockEndommage{},
 		&models.User{},
+		&models.TableBox{},
 	)
 }
