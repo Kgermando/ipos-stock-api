@@ -14,12 +14,13 @@ type TableBox struct {
 	PosUUID   string         `gorm:"type:varchar(255);not null" json:"pos_uuid"`
 	Pos       Pos            `gorm:"foreignKey:PosUUID;references:UUID"` // Point de vente
 
-	Name string `json:"name"`
+	Name      string `json:"name"`
 	Catergory string `json:"category"`
-	
-	Signature      string  `json:"signature"`
-	EntrepriseUUID string  `json:"entreprise_uuid"`
-	Sync           bool    `gorm:"default:false" json:"sync"`
+	Statut    string `json:"statut"`
+
+	Signature      string `json:"signature"`
+	EntrepriseUUID string `json:"entreprise_uuid"`
+	Sync           bool   `gorm:"default:false" json:"sync"`
 
 	Commandes []Commande `gorm:"foreignKey:TableBoxUUID;references:UUID"` // Liste des lignes de commande
 

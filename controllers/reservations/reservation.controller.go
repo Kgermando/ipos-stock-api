@@ -1,4 +1,4 @@
-package tablebox
+package reservations
 
 import (
 	"strconv"
@@ -17,49 +17,49 @@ func GetDataSynchronisation(c *fiber.Ctx) error {
 	posUUID := c.Params("pos_uuid")
 
 	sync_created := c.Query("sync_created", "2023-01-01")
-	var data []models.TableBox
+	var data []models.Reservation
 
 	if posUUID == "-" {
 		db.Unscoped().Where("entreprise_uuid = ?", entrepriseUUID).
 			Where("created_at > ?", sync_created).
-			Order("table_boxes.updated_at DESC").
+			Order("reservations.updated_at DESC").
 			Preload("Pos").
 			Find(&data)
 	} else {
 		db.Unscoped().Where("entreprise_uuid = ?", entrepriseUUID).
 			Where("pos_uuid = ?", posUUID).
 			Where("created_at > ?", sync_created).
-			Order("table_boxes.updated_at DESC").
+			Order("reservations.updated_at DESC").
 			Preload("Pos").
 			Find(&data)
 	}
 	return c.JSON(fiber.Map{
 		"status":  "success",
-		"message": "All table boxes sync data",
+		"message": "All reservations sync data",
 		"data":    data,
 	})
 }
 
 // Paginate by entreprise
-func GetPaginatedTableBoxEntreprise(c *fiber.Ctx) error {
+func GetPaginatedReservationEntreprise(c *fiber.Ctx) error {
 	db := database.DB
 	entrepriseUUID := c.Params("entreprise_uuid")
 
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	limit, _ := strconv.Atoi(c.Query("limit", "15"))
 	search := c.Query("search", "")
-	sort := c.Query("sort", "name")
+	sort := c.Query("sort", "client_name")
 	order := c.Query("order", "asc")
 
 	offset := (page - 1) * limit
 
-	var dataList []models.TableBox
+	var dataList []models.Reservation
 	var totalRecords int64
 
-	query := db.Model(&models.TableBox{}).Where("entreprise_uuid = ?", entrepriseUUID)
+	query := db.Model(&models.Reservation{}).Where("entreprise_uuid = ?", entrepriseUUID)
 
 	if search != "" {
-		query = query.Where("name LIKE ? OR category LIKE ? OR statut LIKE ?", "%"+search+"%", "%"+search+"%", "%"+search+"%")
+		query = query.Where("client_name LIKE ? OR table LIKE ? OR status LIKE ?", "%"+search+"%", "%"+search+"%", "%"+search+"%")
 	}
 
 	// Get total count
@@ -75,7 +75,7 @@ func GetPaginatedTableBoxEntreprise(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"status":  "error",
-			"message": "Failed to fetch table boxes",
+			"message": "Failed to fetch reservations",
 			"error":   err.Error(),
 		})
 	}
@@ -93,14 +93,14 @@ func GetPaginatedTableBoxEntreprise(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"status":     "success",
-		"message":    "All table boxes",
+		"message":    "All reservations",
 		"data":       dataList,
 		"pagination": pagination,
 	})
 }
 
 // Paginate by posUUID
-func GetPaginatedTableBoxByPosUUID(c *fiber.Ctx) error {
+func GetPaginatedReservationByPosUUID(c *fiber.Ctx) error {
 	db := database.DB
 	entrepriseUUID := c.Params("entreprise_uuid")
 	posUUID := c.Params("pos_uuid")
@@ -108,18 +108,18 @@ func GetPaginatedTableBoxByPosUUID(c *fiber.Ctx) error {
 	page, _ := strconv.Atoi(c.Query("page", "1"))
 	limit, _ := strconv.Atoi(c.Query("limit", "15"))
 	search := c.Query("search", "")
-	sort := c.Query("sort", "name")
+	sort := c.Query("sort", "client_name")
 	order := c.Query("order", "asc")
 
 	offset := (page - 1) * limit
 
-	var dataList []models.TableBox
+	var dataList []models.Reservation
 	var totalRecords int64
 
-	query := db.Model(&models.TableBox{}).Where("entreprise_uuid = ?", entrepriseUUID).Where("pos_uuid = ?", posUUID)
+	query := db.Model(&models.Reservation{}).Where("entreprise_uuid = ?", entrepriseUUID).Where("pos_uuid = ?", posUUID)
 
 	if search != "" {
-		query = query.Where("name LIKE ? OR category LIKE ? OR statut LIKE ?", "%"+search+"%", "%"+search+"%", "%"+search+"%")
+		query = query.Where("client_name LIKE ? OR table LIKE ? OR status LIKE ?", "%"+search+"%", "%"+search+"%", "%"+search+"%")
 	}
 
 	// Get total count
@@ -135,7 +135,7 @@ func GetPaginatedTableBoxByPosUUID(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"status":  "error",
-			"message": "Failed to fetch table boxes",
+			"message": "Failed to fetch reservations",
 			"error":   err.Error(),
 		})
 	}
@@ -153,66 +153,66 @@ func GetPaginatedTableBoxByPosUUID(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"status":     "success",
-		"message":    "All table boxes",
+		"message":    "All reservations",
 		"data":       dataList,
 		"pagination": pagination,
 	})
 }
 
 // Get All data
-func GetAllTableBoxs(c *fiber.Ctx) error {
+func GetAllReservations(c *fiber.Ctx) error {
 	db := database.DB
 	entrepriseUUID := c.Params("entreprise_uuid")
 	posUUID := c.Params("pos_uuid")
 
-	var data []models.TableBox
+	var data []models.Reservation
 	db.Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("pos_uuid = ?", posUUID).
 		Preload("Pos").
 		Find(&data)
 	return c.JSON(fiber.Map{
 		"status":  "success",
-		"message": "All table boxes",
+		"message": "All reservations",
 		"data":    data,
 	})
 }
 
 // Get All data by search
-func GetAllTableBoxBySearch(c *fiber.Ctx) error {
+func GetAllReservationBySearch(c *fiber.Ctx) error {
 	db := database.DB
 	entrepriseUUID := c.Params("entreprise_uuid")
 	posUUID := c.Params("pos_uuid")
 	search := c.Query("search", "")
 
-	var data []models.TableBox
+	var data []models.Reservation
 
 	query := db.Where("entreprise_uuid = ?", entrepriseUUID).Where("pos_uuid = ?", posUUID)
 
 	if search != "" {
-		query = query.Where("name LIKE ? OR category LIKE ? OR statut LIKE ?", "%"+search+"%", "%"+search+"%", "%"+search+"%")
+		query = query.Where("client_name LIKE ? OR table LIKE ? OR status LIKE ?", "%"+search+"%", "%"+search+"%", "%"+search+"%")
 	}
 
 	query.Preload("Pos").Find(&data)
 
 	return c.JSON(fiber.Map{
 		"status":  "success",
-		"message": "All table boxes",
+		"message": "All reservations",
 		"data":    data,
 	})
 }
 
 // Get one data
-func GetTableBox(c *fiber.Ctx) error {
+func GetReservation(c *fiber.Ctx) error {
 	uuid := c.Params("uuid")
 	db := database.DB
 
-	var tableBox models.TableBox
-	db.Where("uuid = ?", uuid).Preload("Pos").First(&tableBox)
-	if tableBox.Name == "" {
+	var reservation models.Reservation
+	db.Where("uuid = ?", uuid).Preload("Pos").First(&reservation)
+	if reservation.ClientName == "" {
 		return c.Status(404).JSON(
 			fiber.Map{
 				"status":  "error",
-				"message": "No table box found",
+				"message": "No reservation found",
 				"data":    nil,
 			},
 		)
@@ -220,21 +220,21 @@ func GetTableBox(c *fiber.Ctx) error {
 	return c.JSON(
 		fiber.Map{
 			"status":  "success",
-			"message": "Table box found",
-			"data":    tableBox,
+			"message": "Reservation found",
+			"data":    reservation,
 		},
 	)
 }
 
 // Create data
-func CreateTableBox(c *fiber.Ctx) error {
-	p := &models.TableBox{}
+func CreateReservation(c *fiber.Ctx) error {
+	p := &models.Reservation{}
 
 	if err := c.BodyParser(&p); err != nil {
 		return err
 	}
 
-	if p.Name == "" {
+	if p.ClientName == "" || p.Table == "" || p.ReservationDate == "" || p.ReservationTime == "" {
 		return c.Status(400).JSON(
 			fiber.Map{
 				"status":  "error",
@@ -252,112 +252,132 @@ func CreateTableBox(c *fiber.Ctx) error {
 	return c.JSON(
 		fiber.Map{
 			"status":  "success",
-			"message": "Table box created successfully",
+			"message": "Reservation created successfully",
 			"data":    p,
 		},
 	)
 }
 
 // Update data
-func UpdateTableBox(c *fiber.Ctx) error {
+func UpdateReservation(c *fiber.Ctx) error {
 	uuid := c.Params("uuid")
 	db := database.DB
 
-	var tableBox models.TableBox
+	var reservation models.Reservation
 
-	// Find the table box
-	db.Where("uuid = ?", uuid).First(&tableBox)
-	if tableBox.Name == "" {
+	// Find the reservation
+	db.Where("uuid = ?", uuid).First(&reservation)
+	if reservation.ClientName == "" {
 		return c.Status(404).JSON(
 			fiber.Map{
 				"status":  "error",
-				"message": "No table box found",
+				"message": "No reservation found",
 				"data":    nil,
 			},
 		)
 	}
 
 	// Parse request body
-	if err := c.BodyParser(&tableBox); err != nil {
+	if err := c.BodyParser(&reservation); err != nil {
 		return err
 	}
 
-	tableBox.Sync = true
+	reservation.Sync = true
 
 	// Save to database
-	database.DB.Save(&tableBox)
+	database.DB.Save(&reservation)
 	return c.JSON(
 		fiber.Map{
 			"status":  "success",
-			"message": "Table box updated successfully",
-			"data":    tableBox,
+			"message": "Reservation updated successfully",
+			"data":    reservation,
 		},
 	)
 }
 
 // Delete data
-func DeleteTableBox(c *fiber.Ctx) error {
+func DeleteReservation(c *fiber.Ctx) error {
 	uuid := c.Params("uuid")
 	db := database.DB
 
-	var tableBox models.TableBox
-	db.Where("uuid = ?", uuid).First(&tableBox)
-	if tableBox.Name == "" {
+	var reservation models.Reservation
+	db.Where("uuid = ?", uuid).First(&reservation)
+	if reservation.ClientName == "" {
 		return c.Status(404).JSON(
 			fiber.Map{
 				"status":  "error",
-				"message": "No table box found",
+				"message": "No reservation found",
 				"data":    nil,
 			},
 		)
 	}
 
-	db.Delete(&tableBox)
+	db.Delete(&reservation)
 	return c.JSON(
 		fiber.Map{
 			"status":  "success",
-			"message": "Table box deleted successfully",
+			"message": "Reservation deleted successfully",
 			"data":    nil,
 		},
 	)
 }
 
-// Get table boxes by category
-func GetTableBoxsByCategory(c *fiber.Ctx) error {
+// Get reservations by status
+func GetReservationsByStatus(c *fiber.Ctx) error {
 	db := database.DB
 	entrepriseUUID := c.Params("entreprise_uuid")
 	posUUID := c.Params("pos_uuid")
-	category := c.Params("category")
+	status := c.Params("status")
 
-	var data []models.TableBox
+	var data []models.Reservation
 	db.Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("pos_uuid = ?", posUUID).
-		Where("category = ?", category).
+		Where("status = ?", status).
 		Preload("Pos").
 		Find(&data)
 	return c.JSON(fiber.Map{
 		"status":  "success",
-		"message": "All table boxes by category",
+		"message": "All reservations by status",
 		"data":    data,
 	})
 }
 
-// Get table boxes by statut
-func GetTableBoxsByStatut(c *fiber.Ctx) error {
+// Get reservations by date
+func GetReservationsByDate(c *fiber.Ctx) error {
 	db := database.DB
 	entrepriseUUID := c.Params("entreprise_uuid")
 	posUUID := c.Params("pos_uuid")
-	statut := c.Params("statut")
+	date := c.Params("date")
 
-	var data []models.TableBox
+	var data []models.Reservation
 	db.Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("pos_uuid = ?", posUUID).
-		Where("statut = ?", statut).
+		Where("reservation_date = ?", date).
 		Preload("Pos").
 		Find(&data)
 	return c.JSON(fiber.Map{
 		"status":  "success",
-		"message": "All table boxes by statut",
+		"message": "All reservations by date",
+		"data":    data,
+	})
+}
+
+// Get reservations by table
+func GetReservationsByTable(c *fiber.Ctx) error {
+	db := database.DB
+	entrepriseUUID := c.Params("entreprise_uuid")
+	posUUID := c.Params("pos_uuid")
+	table := c.Params("table")
+
+	var data []models.Reservation
+	db.Where("entreprise_uuid = ?", entrepriseUUID).
+		Where("pos_uuid = ?", posUUID).
+		Where("table = ?", table).
+		Preload("Pos").
+		Find(&data)
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": "All reservations by table",
 		"data":    data,
 	})
 }

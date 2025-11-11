@@ -13,6 +13,7 @@ import (
 	"github.com/kgermando/ipos-stock-api/controllers/plats"
 	"github.com/kgermando/ipos-stock-api/controllers/pos"
 	"github.com/kgermando/ipos-stock-api/controllers/products"
+	"github.com/kgermando/ipos-stock-api/controllers/reservations"
 	"github.com/kgermando/ipos-stock-api/controllers/stocks"
 	tablebox "github.com/kgermando/ipos-stock-api/controllers/tableBox"
 	"github.com/kgermando/ipos-stock-api/controllers/users"
@@ -151,10 +152,26 @@ func Setup(app *fiber.App) {
 	tb.Get("/:entreprise_uuid/:pos_uuid/all/search", tablebox.GetAllTableBoxBySearch)
 	tb.Get("/:entreprise_uuid/:pos_uuid/all/synchronisation", tablebox.GetDataSynchronisation)
 	tb.Get("/:entreprise_uuid/:pos_uuid/category/:category", tablebox.GetTableBoxsByCategory)
+	tb.Get("/:entreprise_uuid/:pos_uuid/statut/:statut", tablebox.GetTableBoxsByStatut)
 	tb.Get("/get/:uuid", tablebox.GetTableBox)
 	tb.Post("/create", tablebox.CreateTableBox)
 	tb.Put("/update/:uuid", tablebox.UpdateTableBox)
 	tb.Delete("/delete/:uuid", tablebox.DeleteTableBox)
+
+	// Reservation controller
+	r := api.Group("/reservations")
+	r.Get("/:entreprise_uuid/all/paginate", reservations.GetPaginatedReservationEntreprise)
+	r.Get("/:entreprise_uuid/:pos_uuid/all", reservations.GetAllReservations)
+	r.Get("/:entreprise_uuid/:pos_uuid/all/paginate", reservations.GetPaginatedReservationByPosUUID)
+	r.Get("/:entreprise_uuid/:pos_uuid/all/search", reservations.GetAllReservationBySearch)
+	r.Get("/:entreprise_uuid/:pos_uuid/all/synchronisation", reservations.GetDataSynchronisation)
+	r.Get("/:entreprise_uuid/:pos_uuid/status/:status", reservations.GetReservationsByStatus)
+	r.Get("/:entreprise_uuid/:pos_uuid/date/:date", reservations.GetReservationsByDate)
+	r.Get("/:entreprise_uuid/:pos_uuid/table/:table", reservations.GetReservationsByTable)
+	r.Get("/get/:uuid", reservations.GetReservation)
+	r.Post("/create", reservations.CreateReservation)
+	r.Put("/update/:uuid", reservations.UpdateReservation)
+	r.Delete("/delete/:uuid", reservations.DeleteReservation)
 
 	// Stock controller
 	s := api.Group("/stocks")
