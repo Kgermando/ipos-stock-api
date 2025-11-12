@@ -10,6 +10,7 @@ import (
 	"github.com/kgermando/ipos-stock-api/controllers/dashboard"
 	"github.com/kgermando/ipos-stock-api/controllers/entreprises"
 	"github.com/kgermando/ipos-stock-api/controllers/fournisseurs"
+	"github.com/kgermando/ipos-stock-api/controllers/livraisons"
 	"github.com/kgermando/ipos-stock-api/controllers/plats"
 	"github.com/kgermando/ipos-stock-api/controllers/pos"
 	"github.com/kgermando/ipos-stock-api/controllers/products"
@@ -17,6 +18,8 @@ import (
 	"github.com/kgermando/ipos-stock-api/controllers/stocks"
 	tablebox "github.com/kgermando/ipos-stock-api/controllers/tableBox"
 	"github.com/kgermando/ipos-stock-api/controllers/users"
+
+	"github.com/kgermando/ipos-stock-api/controllers/zones"
 
 	"github.com/gofiber/fiber/v2/middleware/logger"
 )
@@ -227,6 +230,28 @@ func Setup(app *fiber.App) {
 	fs.Post("/create", fournisseurs.CreateFournisseur)
 	fs.Put("/update/:uuid", fournisseurs.UpdateFournisseur)
 	fs.Delete("/delete/:uuid", fournisseurs.DeleteFournisseur)
+
+	// Zone controller
+	z := api.Group("/zones")
+	z.Get("/:entreprise_uuid/all", zones.GetAllZones)
+	z.Get("/:entreprise_uuid/:pos_uuid/all/paginate", zones.GetPaginatedZone)
+	z.Get("/:entreprise_uuid/:pos_uuid/all/synchronisation", zones.GetDataSynchronisation)
+	z.Get("/get/:uuid", zones.GetZone)
+	z.Post("/create", zones.CreateZone)
+	z.Post("/uploads", zones.UploadCsvDataZone)
+	z.Put("/update/:uuid", zones.UpdateZone)
+	z.Delete("/delete/:uuid", zones.DeleteZone)
+
+	// Livraison controller
+	lv := api.Group("/livraisons")
+	lv.Get("/:entreprise_uuid/all", livraisons.GetAllLivraisons)
+	lv.Get("/:entreprise_uuid/:pos_uuid/all/paginate", livraisons.GetPaginatedLivraison)
+	lv.Get("/:entreprise_uuid/:pos_uuid/all/synchronisation", livraisons.GetDataSynchronisation)
+	lv.Get("/get/:uuid", livraisons.GetLivraison)
+	lv.Post("/create", livraisons.CreateLivraison)
+	lv.Post("/uploads", livraisons.UploadCsvDataLivraison)
+	lv.Put("/update/:uuid", livraisons.UpdateLivraison)
+	lv.Delete("/delete/:uuid", livraisons.DeleteLivraison)
 
 	// Commande controller
 	cmd := api.Group("/commandes")

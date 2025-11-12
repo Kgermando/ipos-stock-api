@@ -27,5 +27,6 @@ type Client struct {
 	Pos            Pos    `gorm:"foreignKey:PosUUID;references:UUID"` // Point de vente
 	Sync           bool   `gorm:"default:false" json:"sync"`
 
-	Commandes []Commande `gorm:"foreignKey:ClientUUID;references:UUID"` // Liste des commandes du client
+	Commandes  []Commande  `gorm:"foreignKey:ClientUUID;references:UUID"` // Liste des commandes du client
+	Livraisons []Livraison `gorm:"foreignKey:ClientUUID;references:UUID"` // Liste des livraisons du client
 }

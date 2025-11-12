@@ -39,14 +39,17 @@ func Connect() {
 		&models.CommandeLine{},
 		&models.Entreprise{},
 		&models.Fournisseur{},
+		&models.Livraison{},
 		&models.PasswordReset{},
 		&models.Plat{},
 		&models.Pos{},
 		&models.Product{},
+		&models.Reservation{},
 		&models.Restitution{},
 		&models.Stock{},
 		&models.StockEndommage{},
 		&models.User{},
 		&models.TableBox{},
+		&models.Zone{},
 	)
 }

@@ -30,5 +30,8 @@ type Commande struct {
 	TableBoxUUID string   `gorm:"type:varchar(255)" json:"table_box_uuid"`
 	TableBox     TableBox `gorm:"foreignKey:TableBoxUUID;references:UUID"`
 
+	LivraisonUUID string    `gorm:"type:varchar(255)" json:"livraison_uuid"`
+	Livraison     Livraison `gorm:"foreignKey:LivraisonUUID;references:UUID"`
+
 	CommandeLines []CommandeLine `gorm:"foreignKey:CommandeUUID;references:UUID"` // Liste des lignes de commande
 }

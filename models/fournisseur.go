@@ -29,5 +29,6 @@ type Fournisseur struct {
 	Pos     Pos    `gorm:"foreignKey:PosUUID;references:UUID"` // Point de vente
 	Sync    bool   `gorm:"default:false" json:"sync"`
 
-	Stocks []Stock `gorm:"foreignKey:FournisseurUUID;references:UUID"` // Liste des stocks du fournisseur
+	Stocks     []Stock     `gorm:"foreignKey:FournisseurUUID;references:UUID"` // Liste des stocks du fournisseur
+	Livraisons []Livraison `gorm:"foreignKey:FournisseurUUID;references:UUID"` // Liste des livraisons du fournisseur
 }
