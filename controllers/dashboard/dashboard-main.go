@@ -4,12 +4,23 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/kgermando/ipos-stock-api/database"
 	"github.com/kgermando/ipos-stock-api/models"
 )
+
+// buildPosFilter construit les conditions de filtre pour POS
+// Si posUUID est vide, filtre seulement par entreprise
+// Si posUUID est fourni, filtre par entreprise ET pos
+func buildPosFilter(entrepriseUUID, posUUID string) (string, []interface{}) {
+	if posUUID == "" {
+		return "entreprise_uuid = ?", []interface{}{entrepriseUUID}
+	}
+	return "entreprise_uuid = ? AND pos_uuid = ?", []interface{}{entrepriseUUID, posUUID}
+}
 
 // ============================= ENDPOINTS =============================
 
@@ -439,18 +450,31 @@ func GetTopTransactions(c *fiber.Ctx) error {
 func calculateDashboardStats(entrepriseUUID, posUUID string, startDate, endDate *time.Time) models.DashboardStats {
 	db := database.DB
 
+	// Construire les conditions de filtre
+	posFilter, posArgs := buildPosFilter(entrepriseUUID, posUUID)
+
 	// 1. Total articles
 	var totalArticles int64
-	db.Model(&models.Product{}).Where("entreprise_uuid = ? AND pos_uuid = ?", entrepriseUUID, posUUID).Count(&totalArticles)
+	db.Model(&models.Product{}).Where(posFilter, posArgs...).Count(&totalArticles)
 
 	// 2. Articles en rupture de stock
 	var articlesRuptureStock int64
-	db.Model(&models.Product{}).Where("entreprise_uuid = ? AND pos_uuid = ? AND stock <= 0", entrepriseUUID, posUUID).Count(&articlesRuptureStock)
+	db.Model(&models.Product{}).Where(posFilter+" AND stock <= 0", posArgs...).Count(&articlesRuptureStock)
 
 	// 3. Total ventes (nombre de produits vendus uniquement)
+	var commandeFilter string
+	var commandeArgs []interface{}
+	if posUUID == "" {
+		commandeFilter = "c.entreprise_uuid = ? AND c.status = ? AND cl.item_type = ?"
+		commandeArgs = []interface{}{entrepriseUUID, "paid", "product"}
+	} else {
+		commandeFilter = "c.entreprise_uuid = ? AND c.pos_uuid = ? AND c.status = ? AND cl.item_type = ?"
+		commandeArgs = []interface{}{entrepriseUUID, posUUID, "paid", "product"}
+	}
+
 	query := db.Table("commande_lines cl").
 		Joins("JOIN commandes c ON cl.commande_uuid = c.uuid").
-		Where("c.entreprise_uuid = ? AND c.pos_uuid = ? AND c.status = ? AND cl.item_type = ?", entrepriseUUID, posUUID, "paid", "product")
+		Where(commandeFilter, commandeArgs...)
 
 	if startDate != nil && endDate != nil {
 		query = query.Where("c.created_at BETWEEN ? AND ?", startDate, endDate)
@@ -464,7 +488,7 @@ func calculateDashboardStats(entrepriseUUID, posUUID string, startDate, endDate 
 	subquery := db.Table("commande_lines cl").
 		Joins("JOIN commandes c ON cl.commande_uuid = c.uuid").
 		Joins("JOIN products p ON cl.product_uuid = p.uuid").
-		Where("c.entreprise_uuid = ? AND c.pos_uuid = ? AND c.status = ? AND cl.item_type = ?", entrepriseUUID, posUUID, "paid", "product")
+		Where(commandeFilter, commandeArgs...)
 
 	if startDate != nil && endDate != nil {
 		subquery = subquery.Where("c.created_at BETWEEN ? AND ?", startDate, endDate)
@@ -549,11 +573,21 @@ func getSalesChartData(entrepriseUUID, posUUID string, startDate, endDate time.T
 		PrixAchat float64
 	}
 
+	var commandeFilter string
+	var commandeArgs []interface{}
+	if posUUID == "" {
+		commandeFilter = "c.entreprise_uuid = ? AND c.status = ? AND cl.item_type = ?"
+		commandeArgs = []interface{}{entrepriseUUID, "paid", "product"}
+	} else {
+		commandeFilter = "c.entreprise_uuid = ? AND c.pos_uuid = ? AND c.status = ? AND cl.item_type = ?"
+		commandeArgs = []interface{}{entrepriseUUID, posUUID, "paid", "product"}
+	}
+
 	query := db.Table("commande_lines cl").
 		Select("c.created_at, cl.quantity, p.prix_vente, p.prix_achat").
 		Joins("JOIN commandes c ON cl.commande_uuid = c.uuid").
 		Joins("JOIN products p ON cl.product_uuid = p.uuid").
-		Where("c.entreprise_uuid = ? AND c.pos_uuid = ? AND c.status = ? AND cl.item_type = ?", entrepriseUUID, posUUID, "paid", "product").
+		Where(commandeFilter, commandeArgs...).
 		Where("c.created_at BETWEEN ? AND ?", startDate, endDate)
 
 	query.Scan(&results)
@@ -615,11 +649,21 @@ func getPlatChartData(entrepriseUUID, posUUID string, startDate, endDate time.Ti
 		Quantity int64
 	}
 
+	var commandeFilter string
+	var commandeArgs []interface{}
+	if posUUID == "" {
+		commandeFilter = "c.entreprise_uuid = ? AND c.status = ? AND cl.item_type = ?"
+		commandeArgs = []interface{}{entrepriseUUID, "paid", "plat"}
+	} else {
+		commandeFilter = "c.entreprise_uuid = ? AND c.pos_uuid = ? AND c.status = ? AND cl.item_type = ?"
+		commandeArgs = []interface{}{entrepriseUUID, posUUID, "paid", "plat"}
+	}
+
 	query := db.Table("commande_lines cl").
 		Select("pl.name, SUM(cl.quantity * pl.prix) as montant, SUM(cl.quantity) as quantity").
 		Joins("JOIN commandes c ON cl.commande_uuid = c.uuid").
 		Joins("JOIN plats pl ON cl.plat_uuid = pl.uuid").
-		Where("c.entreprise_uuid = ? AND c.pos_uuid = ? AND c.status = ? AND cl.item_type = ?", entrepriseUUID, posUUID, "paid", "plat").
+		Where(commandeFilter, commandeArgs...).
 		Where("c.created_at BETWEEN ? AND ?", startDate, endDate).
 		Group("pl.uuid, pl.name").
 		Order("montant DESC").
@@ -672,11 +716,21 @@ func getProductChartData(entrepriseUUID, posUUID string, startDate, endDate time
 		Quantity int64
 	}
 
+	var commandeFilter string
+	var commandeArgs []interface{}
+	if posUUID == "" {
+		commandeFilter = "c.entreprise_uuid = ? AND c.status = ? AND cl.item_type = ?"
+		commandeArgs = []interface{}{entrepriseUUID, "paid", "product"}
+	} else {
+		commandeFilter = "c.entreprise_uuid = ? AND c.pos_uuid = ? AND c.status = ? AND cl.item_type = ?"
+		commandeArgs = []interface{}{entrepriseUUID, posUUID, "paid", "product"}
+	}
+
 	query := db.Table("commande_lines cl").
 		Select("p.name, SUM(cl.quantity * p.prix_vente) as montant, SUM(cl.quantity) as quantity").
 		Joins("JOIN commandes c ON cl.commande_uuid = c.uuid").
 		Joins("JOIN products p ON cl.product_uuid = p.uuid").
-		Where("c.entreprise_uuid = ? AND c.pos_uuid = ? AND c.status = ? AND cl.item_type = ?", entrepriseUUID, posUUID, "paid", "product").
+		Where(commandeFilter, commandeArgs...).
 		Where("c.created_at BETWEEN ? AND ?", startDate, endDate).
 		Group("p.uuid, p.name").
 		Order("montant DESC").
@@ -723,8 +777,13 @@ func getProductChartData(entrepriseUUID, posUUID string, startDate, endDate time
 func getStockAlerts(entrepriseUUID, posUUID string) []models.StockAlert {
 	db := database.DB
 
+	// Construire les conditions de filtre
+	posFilter, posArgs := buildPosFilter(entrepriseUUID, posUUID)
+	stockFilter := posFilter + " AND stock <= ?"
+	stockArgs := append(posArgs, 5)
+
 	var products []models.Product
-	db.Where("entreprise_uuid = ? AND pos_uuid = ? AND stock <= ?", entrepriseUUID, posUUID, 5).
+	db.Where(stockFilter, stockArgs...).
 		Order("stock ASC").
 		Find(&products)
 
@@ -770,9 +829,13 @@ func getStockRotationData(entrepriseUUID, posUUID string, startDate, endDate *ti
 		periodStart = periodEnd.AddDate(-1, 0, 0) // 12 mois en arrière
 	}
 
+	// Construire les conditions de filtre
+	posFilter, posArgs := buildPosFilter(entrepriseUUID, posUUID)
+	stockFilter := posFilter + " AND stock > 0"
+
 	// Récupérer les produits avec stock
 	var products []models.Product
-	db.Where("entreprise_uuid = ? AND pos_uuid = ? AND stock > 0", entrepriseUUID, posUUID).Find(&products)
+	db.Where(stockFilter, posArgs...).Find(&products)
 
 	if len(products) == 0 {
 		return models.StockRotationData{
@@ -791,10 +854,21 @@ func getStockRotationData(entrepriseUUID, posUUID string, startDate, endDate *ti
 		TotalSales  float64
 	}
 
+	// Construire le filtre pour les commandes
+	var commandeFilter string
+	var commandeArgs []interface{}
+	if posUUID == "" {
+		commandeFilter = "c.entreprise_uuid = ? AND c.status = ? AND cl.item_type = ?"
+		commandeArgs = []interface{}{entrepriseUUID, "paid", "product"}
+	} else {
+		commandeFilter = "c.entreprise_uuid = ? AND c.pos_uuid = ? AND c.status = ? AND cl.item_type = ?"
+		commandeArgs = []interface{}{entrepriseUUID, posUUID, "paid", "product"}
+	}
+
 	db.Table("commande_lines cl").
 		Select("cl.product_uuid, SUM(cl.quantity) as total_sales").
 		Joins("JOIN commandes c ON cl.commande_uuid = c.uuid").
-		Where("c.entreprise_uuid = ? AND c.pos_uuid = ? AND c.status = ? AND cl.item_type = ?", entrepriseUUID, posUUID, "paid", "product").
+		Where(commandeFilter, commandeArgs...).
 		Where("c.created_at BETWEEN ? AND ?", periodStart, periodEnd).
 		Group("cl.product_uuid").
 		Scan(&salesResults)
@@ -903,16 +977,30 @@ func getStockRotationData(entrepriseUUID, posUUID string, startDate, endDate *ti
 func getPlatStatistics(entrepriseUUID, posUUID string, startDate, endDate *time.Time) models.PlatStatistics {
 	db := database.DB
 
+	// Construire les conditions de filtre
+	posFilter, posArgs := buildPosFilter(entrepriseUUID, posUUID)
+
 	// Total plats
 	var totalPlats int64
-	db.Model(&models.Plat{}).Where("entreprise_uuid = ? AND pos_uuid = ?", entrepriseUUID, posUUID).Count(&totalPlats)
+	db.Model(&models.Plat{}).Where(posFilter, posArgs...).Count(&totalPlats)
+
+	// Construire le filtre pour les commandes
+	var commandeFilter string
+	var commandeArgs []interface{}
+	if posUUID == "" {
+		commandeFilter = "c.entreprise_uuid = ? AND c.status = ? AND cl.item_type = ?"
+		commandeArgs = []interface{}{entrepriseUUID, "paid", "plat"}
+	} else {
+		commandeFilter = "c.entreprise_uuid = ? AND c.pos_uuid = ? AND c.status = ? AND cl.item_type = ?"
+		commandeArgs = []interface{}{entrepriseUUID, posUUID, "paid", "plat"}
+	}
 
 	// Total clients uniques ayant commandé des plats
 	var totalClients int64
 	subquery := db.Table("commande_lines cl").
 		Select("c.client_uuid").
 		Joins("JOIN commandes c ON cl.commande_uuid = c.uuid").
-		Where("c.entreprise_uuid = ? AND c.pos_uuid = ? AND c.status = ? AND cl.item_type = ?", entrepriseUUID, posUUID, "paid", "plat")
+		Where(commandeFilter, commandeArgs...)
 
 	if startDate != nil && endDate != nil {
 		subquery = subquery.Where("c.created_at BETWEEN ? AND ?", startDate, endDate)
@@ -924,7 +1012,7 @@ func getPlatStatistics(entrepriseUUID, posUUID string, startDate, endDate *time.
 	var quantitesVendues int64
 	platQuery := db.Table("commande_lines cl").
 		Joins("JOIN commandes c ON cl.commande_uuid = c.uuid").
-		Where("c.entreprise_uuid = ? AND c.pos_uuid = ? AND c.status = ? AND cl.item_type = ?", entrepriseUUID, posUUID, "paid", "plat")
+		Where(commandeFilter, commandeArgs...)
 
 	if startDate != nil && endDate != nil {
 		platQuery = platQuery.Where("c.created_at BETWEEN ? AND ?", startDate, endDate)
@@ -937,7 +1025,7 @@ func getPlatStatistics(entrepriseUUID, posUUID string, startDate, endDate *time.
 	caQuery := db.Table("commande_lines cl").
 		Joins("JOIN commandes c ON cl.commande_uuid = c.uuid").
 		Joins("JOIN plats pl ON cl.plat_uuid = pl.uuid").
-		Where("c.entreprise_uuid = ? AND c.pos_uuid = ? AND c.status = ? AND cl.item_type = ?", entrepriseUUID, posUUID, "paid", "plat")
+		Where(commandeFilter, commandeArgs...)
 
 	if startDate != nil && endDate != nil {
 		caQuery = caQuery.Where("c.created_at BETWEEN ? AND ?", startDate, endDate)
@@ -957,8 +1045,11 @@ func getPlatStatistics(entrepriseUUID, posUUID string, startDate, endDate *time.
 func getLivraisonStatistics(entrepriseUUID, posUUID string, startDate, endDate *time.Time) models.LivraisonStats {
 	db := database.DB
 
+	// Construire les conditions de filtre
+	posFilter, posArgs := buildPosFilter(entrepriseUUID, posUUID)
+
 	// Construire la requête de base
-	baseQuery := db.Model(&models.Livraison{}).Where("entreprise_uuid = ? AND pos_uuid = ?", entrepriseUUID, posUUID)
+	baseQuery := db.Model(&models.Livraison{}).Where(posFilter, posArgs...)
 
 	if startDate != nil && endDate != nil {
 		baseQuery = baseQuery.Where("created_at BETWEEN ? AND ?", startDate, endDate)
@@ -972,13 +1063,13 @@ func getLivraisonStatistics(entrepriseUUID, posUUID string, startDate, endDate *
 	var enCours, effectuees, annulees int64
 	baseQuery.Where("statut = ?", "En cours").Count(&enCours)
 
-	baseQueryCopy := db.Model(&models.Livraison{}).Where("entreprise_uuid = ? AND pos_uuid = ?", entrepriseUUID, posUUID)
+	baseQueryCopy := db.Model(&models.Livraison{}).Where(posFilter, posArgs...)
 	if startDate != nil && endDate != nil {
 		baseQueryCopy = baseQueryCopy.Where("created_at BETWEEN ? AND ?", startDate, endDate)
 	}
 	baseQueryCopy.Where("statut = ?", "Effectuée").Count(&effectuees)
 
-	baseQueryCopy2 := db.Model(&models.Livraison{}).Where("entreprise_uuid = ? AND pos_uuid = ?", entrepriseUUID, posUUID)
+	baseQueryCopy2 := db.Model(&models.Livraison{}).Where(posFilter, posArgs...)
 	if startDate != nil && endDate != nil {
 		baseQueryCopy2 = baseQueryCopy2.Where("created_at BETWEEN ? AND ?", startDate, endDate)
 	}
@@ -996,7 +1087,7 @@ func getLivraisonStatistics(entrepriseUUID, posUUID string, startDate, endDate *
 	var totalRevenu float64
 	var livraisons []models.Livraison
 
-	livraisonQuery := db.Where("entreprise_uuid = ? AND pos_uuid = ?", entrepriseUUID, posUUID)
+	livraisonQuery := db.Where(posFilter, posArgs...)
 	if startDate != nil && endDate != nil {
 		livraisonQuery = livraisonQuery.Where("created_at BETWEEN ? AND ?", startDate, endDate)
 	}
@@ -1038,6 +1129,13 @@ func getLivraisonStatistics(entrepriseUUID, posUUID string, startDate, endDate *
 func getLivraisonZonesData(entrepriseUUID, posUUID string, startDate, endDate *time.Time) []models.LivraisonZoneData {
 	db := database.DB
 
+	// Construire les conditions de filtre
+	posFilter, posArgs := buildPosFilter(entrepriseUUID, posUUID)
+	livraisonFilter := strings.Replace(posFilter, "entreprise_uuid", "l.entreprise_uuid", 1)
+	if posUUID != "" {
+		livraisonFilter = strings.Replace(livraisonFilter, "pos_uuid", "l.pos_uuid", 1)
+	}
+
 	var results []struct {
 		ZoneName         string
 		NombreLivraisons int64
@@ -1047,7 +1145,7 @@ func getLivraisonZonesData(entrepriseUUID, posUUID string, startDate, endDate *t
 	query := db.Table("livraisons l").
 		Select("z.name as zone_name, COUNT(*) as nombre_livraisons, COUNT(*) * 5.0 as revenu").
 		Joins("JOIN zones z ON l.zone_uuid = z.uuid").
-		Where("l.entreprise_uuid = ? AND l.pos_uuid = ?", entrepriseUUID, posUUID)
+		Where(livraisonFilter, posArgs...)
 
 	if startDate != nil && endDate != nil {
 		query = query.Where("l.created_at BETWEEN ? AND ?", startDate, endDate)
@@ -1074,6 +1172,13 @@ func getLivraisonZonesData(entrepriseUUID, posUUID string, startDate, endDate *t
 func getLivreurPerformance(entrepriseUUID, posUUID string, startDate, endDate *time.Time) []models.LivreurPerformance {
 	db := database.DB
 
+	// Construire les conditions de filtre
+	posFilter, posArgs := buildPosFilter(entrepriseUUID, posUUID)
+	livraisonFilter := strings.Replace(posFilter, "entreprise_uuid", "l.entreprise_uuid", 1)
+	if posUUID != "" {
+		livraisonFilter = strings.Replace(livraisonFilter, "pos_uuid", "l.pos_uuid", 1)
+	}
+
 	var results []struct {
 		UUID            string
 		Name            string
@@ -1090,7 +1195,7 @@ func getLivreurPerformance(entrepriseUUID, posUUID string, startDate, endDate *t
 				SUM(CASE WHEN l.statut = 'En cours' THEN 1 ELSE 0 END) as en_cours,
 				SUM(CASE WHEN l.statut = 'Annulée' THEN 1 ELSE 0 END) as annulees`).
 		Joins("JOIN livreurs lr ON l.livreur_uuid = lr.uuid").
-		Where("l.entreprise_uuid = ? AND l.pos_uuid = ?", entrepriseUUID, posUUID)
+		Where(livraisonFilter, posArgs...)
 
 	if startDate != nil && endDate != nil {
 		query = query.Where("l.created_at BETWEEN ? AND ?", startDate, endDate)
