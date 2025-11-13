@@ -11,6 +11,7 @@ import (
 	"github.com/kgermando/ipos-stock-api/controllers/entreprises"
 	"github.com/kgermando/ipos-stock-api/controllers/fournisseurs"
 	"github.com/kgermando/ipos-stock-api/controllers/livraisons"
+	"github.com/kgermando/ipos-stock-api/controllers/livreurs"
 	"github.com/kgermando/ipos-stock-api/controllers/plats"
 	"github.com/kgermando/ipos-stock-api/controllers/pos"
 	"github.com/kgermando/ipos-stock-api/controllers/products"
@@ -242,16 +243,28 @@ func Setup(app *fiber.App) {
 	z.Put("/update/:uuid", zones.UpdateZone)
 	z.Delete("/delete/:uuid", zones.DeleteZone)
 
+	// Livreur controller
+	lv := api.Group("/livreurs")
+	lv.Get("/:entreprise_uuid/all", livreurs.GetAllLivreurs)
+	lv.Get("/:entreprise_uuid/:pos_uuid/all/paginate", livreurs.GetPaginatedLivreur)
+	lv.Get("/:entreprise_uuid/:pos_uuid/all/synchronisation", livreurs.GetDataSynchronisation)
+	lv.Get("/:entreprise_uuid/:pos_uuid/type/:type", livreurs.GetLivreursByType)
+	lv.Get("/get/:uuid", livreurs.GetLivreur)
+	lv.Post("/create", livreurs.CreateLivreur)
+	lv.Post("/uploads", livreurs.UploadCsvDataLivreur)
+	lv.Put("/update/:uuid", livreurs.UpdateLivreur)
+	lv.Delete("/delete/:uuid", livreurs.DeleteLivreur)
+
 	// Livraison controller
-	lv := api.Group("/livraisons")
-	lv.Get("/:entreprise_uuid/all", livraisons.GetAllLivraisons)
-	lv.Get("/:entreprise_uuid/:pos_uuid/all/paginate", livraisons.GetPaginatedLivraison)
-	lv.Get("/:entreprise_uuid/:pos_uuid/all/synchronisation", livraisons.GetDataSynchronisation)
-	lv.Get("/get/:uuid", livraisons.GetLivraison)
-	lv.Post("/create", livraisons.CreateLivraison)
-	lv.Post("/uploads", livraisons.UploadCsvDataLivraison)
-	lv.Put("/update/:uuid", livraisons.UpdateLivraison)
-	lv.Delete("/delete/:uuid", livraisons.DeleteLivraison)
+	liv := api.Group("/livraisons")
+	liv.Get("/:entreprise_uuid/all", livraisons.GetAllLivraisons)
+	liv.Get("/:entreprise_uuid/:pos_uuid/all/paginate", livraisons.GetPaginatedLivraison)
+	liv.Get("/:entreprise_uuid/:pos_uuid/all/synchronisation", livraisons.GetDataSynchronisation)
+	liv.Get("/get/:uuid", livraisons.GetLivraison)
+	liv.Post("/create", livraisons.CreateLivraison)
+	liv.Post("/uploads", livraisons.UploadCsvDataLivraison)
+	liv.Put("/update/:uuid", livraisons.UpdateLivraison)
+	liv.Delete("/delete/:uuid", livraisons.DeleteLivraison)
 
 	// Commande controller
 	cmd := api.Group("/commandes")

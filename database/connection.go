@@ -40,6 +40,7 @@ func Connect() {
 		&models.Entreprise{},
 		&models.Fournisseur{},
 		&models.Livraison{},
+		&models.Livreur{},
 		&models.PasswordReset{},
 		&models.Plat{},
 		&models.Pos{},

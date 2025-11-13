@@ -18,8 +18,8 @@ type Livraison struct {
 	ClientUUID string `gorm:"type:varchar(255);not null" json:"client_uuid"`
 	Client     Client `gorm:"foreignKey:ClientUUID;references:UUID"` // Client
 
-	FournisseurUUID string      `gorm:"type:varchar(255);not null" json:"fournisseur_uuid"`
-	Fournisseur     Fournisseur `gorm:"foreignKey:FournisseurUUID;references:UUID"` // Fournisseur
+	LivreurUUID string      `gorm:"type:varchar(255);not null" json:"livreur_uuid"`
+	Livreur     Livreur `gorm:"foreignKey:LivreurUUID;references:UUID"` // Livreur
 
 	ZoneUUID string `gorm:"type:varchar(255);not null" json:"zone_uuid"`
 	Zone     Zone   `gorm:"foreignKey:ZoneUUID;references:UUID"` // Zone de livraison

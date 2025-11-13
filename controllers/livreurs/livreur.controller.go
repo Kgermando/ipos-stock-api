@@ -1,4 +1,4 @@
-package livraisons
+package livreurs
 
 import (
 	"encoding/json"
@@ -19,39 +19,31 @@ func GetDataSynchronisation(c *fiber.Ctx) error {
 	posUUID := c.Params("pos_uuid")
 
 	sync_created := c.Query("sync_created", "2023-01-01")
-	var data []models.Livraison
+	var data []models.Livreur
 
 	if posUUID == "-" {
 		db.Unscoped().Where("entreprise_uuid = ?", entrepriseUUID).
 			Where("created_at > ?", sync_created).
-			Order("livraisons.updated_at DESC").
+			Order("livreurs.updated_at DESC").
 			Preload("Pos").
-			Preload("Client").
-			Preload("Livreur").
-			Preload("Zone").
-			Preload("Commandes").
 			Find(&data)
 	} else {
 		db.Unscoped().Where("entreprise_uuid = ?", entrepriseUUID).
 			Where("pos_uuid = ?", posUUID).
 			Where("created_at > ?", sync_created).
-			Order("livraisons.updated_at DESC").
+			Order("livreurs.updated_at DESC").
 			Preload("Pos").
-			Preload("Client").
-			Preload("Livreur").
-			Preload("Zone").
-			Preload("Commandes").
 			Find(&data)
 	}
 	return c.JSON(fiber.Map{
 		"status":  "success",
-		"message": "All Livraisons",
+		"message": "All Livreurs",
 		"data":    data,
 	})
 }
 
 // Paginate
-func GetPaginatedLivraison(c *fiber.Ctx) error {
+func GetPaginatedLivreur(c *fiber.Ctx) error {
 	db := database.DB
 	entrepriseUUID := c.Params("entreprise_uuid")
 	posUUID := c.Params("pos_uuid")
@@ -69,33 +61,28 @@ func GetPaginatedLivraison(c *fiber.Ctx) error {
 
 	search := c.Query("search", "")
 
-	var dataList []models.Livraison
+	var dataList []models.Livreur
 	var totalRecords int64
 
 	// Count total records matching the search query
-	db.Model(&models.Livraison{}).
+	db.Model(&models.Livreur{}).
 		Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("pos_uuid = ?", posUUID).
-		Where("statut ILIKE ?", "%"+search+"%").
+		Where("name ILIKE ? OR telephone ILIKE ? OR email ILIKE ?", "%"+search+"%", "%"+search+"%", "%"+search+"%").
 		Count(&totalRecords)
 
 	err = db.Where("entreprise_uuid = ?", entrepriseUUID).
 		Where("pos_uuid = ?", posUUID).
-		Where("statut ILIKE ?", "%"+search+"%").
+		Where("name ILIKE ? OR telephone ILIKE ? OR email ILIKE ?", "%"+search+"%", "%"+search+"%", "%"+search+"%").
 		Offset(offset).
 		Limit(limit).
-		Order("livraisons.updated_at DESC").
-		Preload("Pos").
-		Preload("Client").
-		Preload("Livreur").
-		Preload("Zone").
-		Preload("Commandes").
+		Order("livreurs.updated_at DESC").
 		Find(&dataList).Error
 
 	if err != nil {
 		return c.Status(500).JSON(fiber.Map{
 			"status":  "error",
-			"message": "Failed to fetch livraisons",
+			"message": "Failed to fetch livreurs",
 			"error":   err.Error(),
 		})
 	}
@@ -113,50 +100,38 @@ func GetPaginatedLivraison(c *fiber.Ctx) error {
 
 	return c.JSON(fiber.Map{
 		"status":     "success",
-		"message":    "All livraisons paginated",
+		"message":    "All livreurs paginated",
 		"data":       dataList,
 		"pagination": pagination,
 	})
 }
 
 // Get All data
-func GetAllLivraisons(c *fiber.Ctx) error {
+func GetAllLivreurs(c *fiber.Ctx) error {
 	entrepriseUUID := c.Params("entreprise_uuid")
 	db := database.DB
 
-	var data []models.Livraison
-	db.Where("entreprise_uuid = ?", entrepriseUUID).
-		Preload("Pos").
-		Preload("Client").
-		Preload("Livreur").
-		Preload("Zone").
-		Preload("Commandes").
-		Find(&data)
+	var data []models.Livreur
+	db.Where("entreprise_uuid = ?", entrepriseUUID).Find(&data)
 	return c.JSON(fiber.Map{
 		"status":  "success",
-		"message": "All livraisons",
+		"message": "All livreurs",
 		"data":    data,
 	})
 }
 
 // Get one data
-func GetLivraison(c *fiber.Ctx) error {
+func GetLivreur(c *fiber.Ctx) error {
 	uuid := c.Params("uuid")
 	db := database.DB
 
-	var livraison models.Livraison
-	db.Where("uuid = ?", uuid).
-		Preload("Pos").
-		Preload("Client").
-		Preload("Livreur").
-		Preload("Zone").
-		Preload("Commandes").
-		First(&livraison)
-	if livraison.UUID == "" {
+	var livreur models.Livreur
+	db.Where("uuid = ?", uuid).First(&livreur)
+	if livreur.Name == "" {
 		return c.Status(404).JSON(
 			fiber.Map{
 				"status":  "error",
-				"message": "No livraison found",
+				"message": "No livreur found",
 				"data":    nil,
 			},
 		)
@@ -164,15 +139,15 @@ func GetLivraison(c *fiber.Ctx) error {
 	return c.JSON(
 		fiber.Map{
 			"status":  "success",
-			"message": "livraison found",
-			"data":    livraison,
+			"message": "livreur found",
+			"data":    livreur,
 		},
 	)
 }
 
 // Create data
-func CreateLivraison(c *fiber.Ctx) error {
-	p := &models.Livraison{}
+func CreateLivreur(c *fiber.Ctx) error {
+	p := &models.Livreur{}
 
 	if err := c.BodyParser(&p); err != nil {
 		return err
@@ -185,22 +160,24 @@ func CreateLivraison(c *fiber.Ctx) error {
 	return c.JSON(
 		fiber.Map{
 			"status":  "success",
-			"message": "livraison created success",
+			"message": "livreur created success",
 			"data":    p,
 		},
 	)
 }
 
 // Update data
-func UpdateLivraison(c *fiber.Ctx) error {
+func UpdateLivreur(c *fiber.Ctx) error {
 	uuid := c.Params("uuid")
 	db := database.DB
 
 	type UpdateData struct {
-		ClientUUID     string `json:"client_uuid"`
-		LivreurUUID    string `json:"livreur_uuid"`
-		ZoneUUID       string `json:"zone_uuid"`
-		Statut         string `json:"statut"`
+		TypeLivreur    string `json:"type_livreur"`
+		Name           string `json:"name"`
+		Telephone      string `json:"telephone"`
+		Email          string `json:"email"`
+		Adresse        string `json:"adresse"`
+		Manager        string `json:"manager"`
 		Signature      string `json:"signature"`
 		EntrepriseUUID string `json:"entreprise_uuid"`
 	}
@@ -217,63 +194,65 @@ func UpdateLivraison(c *fiber.Ctx) error {
 		)
 	}
 
-	livraison := new(models.Livraison)
+	livreur := new(models.Livreur)
 
-	db.Where("uuid = ?", uuid).First(&livraison)
-	livraison.ClientUUID = updateData.ClientUUID
-	livraison.LivreurUUID = updateData.LivreurUUID
-	livraison.ZoneUUID = updateData.ZoneUUID
-	livraison.Statut = updateData.Statut
-	livraison.Signature = updateData.Signature
-	livraison.EntrepriseUUID = updateData.EntrepriseUUID
+	db.Where("uuid = ?", uuid).First(&livreur)
+	livreur.TypeLivreur = updateData.TypeLivreur
+	livreur.Name = updateData.Name
+	livreur.Telephone = updateData.Telephone
+	livreur.Email = updateData.Email
+	livreur.Adresse = updateData.Adresse
+	livreur.Manager = updateData.Manager
+	livreur.Signature = updateData.Signature
+	livreur.EntrepriseUUID = updateData.EntrepriseUUID
 
-	db.Save(&livraison)
+	db.Save(&livreur)
 
 	return c.JSON(
 		fiber.Map{
 			"status":  "success",
-			"message": "livraison updated success",
-			"data":    livraison,
+			"message": "livreur updated success",
+			"data":    livreur,
 		},
 	)
 }
 
 // Delete data
-func DeleteLivraison(c *fiber.Ctx) error {
+func DeleteLivreur(c *fiber.Ctx) error {
 	uuid := c.Params("uuid")
 
 	db := database.DB
 
-	var livraison models.Livraison
-	db.Where("uuid = ?", uuid).First(&livraison)
-	if livraison.UUID == "" {
+	var livreur models.Livreur
+	db.Where("uuid = ?", uuid).First(&livreur)
+	if livreur.Name == "" {
 		return c.Status(404).JSON(
 			fiber.Map{
 				"status":  "error",
-				"message": "No livraison found",
+				"message": "No livreur found",
 				"data":    nil,
 			},
 		)
 	}
 
-	db.Delete(&livraison)
+	db.Delete(&livreur)
 
 	return c.JSON(
 		fiber.Map{
 			"status":  "success",
-			"message": "livraison deleted success",
+			"message": "livreur deleted success",
 			"data":    nil,
 		},
 	)
 }
 
-func UploadCsvDataLivraison(c *fiber.Ctx) error {
+func UploadCsvDataLivreur(c *fiber.Ctx) error {
 	db := database.DB
 
 	type UploadCSV struct {
-		Data           []models.Livraison `json:"data"`
-		EntrepriseUUID string             `json:"entreprise_uuid"`
-		Signature      string             `json:"signature"`
+		Data           []models.Livreur `json:"data"`
+		EntrepriseUUID string           `json:"entreprise_uuid"`
+		Signature      string           `json:"signature"`
 	}
 
 	var dataUpload UploadCSV
@@ -281,32 +260,53 @@ func UploadCsvDataLivraison(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 	}
 
-	var lv models.Livraison
+	var lv models.Livreur
 
-	for _, livraison := range dataUpload.Data {
-		lv = models.Livraison{
-			PosUUID:        livraison.PosUUID,
-			ClientUUID:     livraison.ClientUUID,
-			LivreurUUID:    livraison.LivreurUUID,
-			ZoneUUID:       livraison.ZoneUUID,
-			Statut:         livraison.Statut,
+	for _, livreur := range dataUpload.Data {
+		lv = models.Livreur{
+			TypeLivreur:    livreur.TypeLivreur,
+			Name:           livreur.Name,
+			Telephone:      livreur.Telephone,
+			Email:          livreur.Email,
+			Adresse:        livreur.Adresse,
+			Manager:        livreur.Manager,
 			Signature:      dataUpload.Signature,
 			EntrepriseUUID: dataUpload.EntrepriseUUID,
 		}
-		if livraison.PosUUID == "" {
+		if livreur.Name == "" {
 			continue
 		}
 
-		livraison.Sync = true
+		livreur.Sync = true
 		db.Create(&lv)
 	}
 
-	fmt.Println("livraisons uploaded success")
+	fmt.Println("livreurs uploaded success")
 
 	return c.JSON(
 		fiber.Map{
 			"status":  "success",
-			"message": "livraisons uploaded success",
+			"message": "livreurs uploaded success",
 		},
 	)
+}
+
+// Get livreurs by type
+func GetLivreursByType(c *fiber.Ctx) error {
+	db := database.DB
+	entrepriseUUID := c.Params("entreprise_uuid")
+	posUUID := c.Params("pos_uuid")
+	typeLivreur := c.Params("type")
+
+	var data []models.Livreur
+	db.Where("entreprise_uuid = ?", entrepriseUUID).
+		Where("pos_uuid = ?", posUUID).
+		Where("type_livreur = ?", typeLivreur).
+		Preload("Pos").
+		Find(&data)
+	return c.JSON(fiber.Map{
+		"status":  "success",
+		"message": "All livreurs by type",
+		"data":    data,
+	})
 }
