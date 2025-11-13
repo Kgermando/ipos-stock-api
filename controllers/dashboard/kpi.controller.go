@@ -305,7 +305,7 @@ func GetEvolutionVente(c *fiber.Ctx) error {
 		now := time.Now()
 		dateFin = now.Format("2006-01-02")
 		dateDebut = now.AddDate(0, 0, -7).Format("2006-01-02")
-	}
+	} 
 
 	now := time.Now()
 	today := now.Format("2006-01-02")

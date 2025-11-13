@@ -290,9 +290,26 @@ func Setup(app *fiber.App) {
 	cmdl.Delete("/delete/:uuid", commandes.DeleteCommandeLine)
 
 	// Dashboard
-	// Tresorerie - Nouveau système complet de dashboard
 	dash := api.Group("/dashboard")
 
+	// Dashboard Principal - Endpoints pour le frontend Angular
+	main := dash.Group("/main")
+	main.Get("/stats", dashboard.GetDashboardStats)
+	main.Get("/sales-chart", dashboard.GetSalesChartData)
+	main.Get("/plat-chart", dashboard.GetPlatChartData)
+	main.Get("/product-chart", dashboard.GetProductChartData)
+	main.Get("/stock-alerts", dashboard.GetStockAlerts)
+	main.Get("/stock-rotation", dashboard.GetStockRotationData)
+	main.Get("/plat-statistics", dashboard.GetPlatStatistics)
+	main.Get("/livraison-statistics", dashboard.GetLivraisonStatistics)
+	main.Get("/livraison-zones", dashboard.GetLivraisonZonesData)
+	main.Get("/livreur-performance", dashboard.GetLivreurPerformance)
+	main.Get("/caisse-statistics", dashboard.GetCaisseStatistics)
+	main.Get("/flux-tresorerie", dashboard.GetFluxTresorerieData)
+	main.Get("/repartition-transactions", dashboard.GetRepartitionTransactionsData)
+	main.Get("/top-transactions", dashboard.GetTopTransactions)
+
+	// Tresorerie - Nouveau système complet de dashboard
 	tresorerie := dash.Group("/tresoreries")
 	// Endpoint principal pour récupérer toutes les données du dashboard
 	tresorerie.Get("/", dashboard.GetDashboardTresorerie)
