@@ -5,7 +5,6 @@ import (
 
 	"github.com/kgermando/ipos-stock-api/database"
 	"github.com/kgermando/ipos-stock-api/models"
-	"github.com/kgermando/ipos-stock-api/utils"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -244,7 +243,19 @@ func CreateTableBox(c *fiber.Ctx) error {
 		)
 	}
 
-	p.UUID = utils.GenerateUUID()
+	// Vérifier si la table box existe déjà
+	var existingTableBox models.TableBox
+	database.DB.Where("uuid = ?", p.UUID).First(&existingTableBox)
+	if existingTableBox.UUID != "" {
+		return c.Status(409).JSON(
+			fiber.Map{
+				"status":  "error",
+				"message": "TableBox avec cet UUID existe déjà",
+				"data":    nil,
+			},
+		)
+	}
+
 	p.Sync = true
 
 	database.DB.Create(p)

@@ -241,6 +241,19 @@ func CreateProduct(c *fiber.Ctx) error {
 		return err
 	}
 
+	// Vérifier si le produit existe déjà
+	var existingProduct models.Product
+	database.DB.Where("uuid = ?", p.UUID).First(&existingProduct)
+	if existingProduct.UUID != "" {
+		return c.Status(409).JSON(
+			fiber.Map{
+				"status":  "error",
+				"message": "Product avec cet UUID existe déjà",
+				"data":    nil,
+			},
+		)
+	}
+
 	p.Sync = true
 
 	database.DB.Create(p)

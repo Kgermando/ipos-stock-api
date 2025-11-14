@@ -215,6 +215,19 @@ func CreateCommande(c *fiber.Ctx) error {
 		return err
 	}
 
+	// Vérifier si la commande existe déjà
+	var existingCommande models.Commande
+	database.DB.Where("uuid = ?", p.UUID).First(&existingCommande)
+	if existingCommande.UUID != "" {
+		return c.Status(409).JSON(
+			fiber.Map{
+				"status":  "error",
+				"message": "Commande avec cet UUID existe déjà",
+				"data":    nil,
+			},
+		)
+	}
+
 	p.Sync = true
 	database.DB.Create(p)
 

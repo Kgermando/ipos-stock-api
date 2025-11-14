@@ -6,7 +6,7 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 )
-  
+
 // Synchronisation Send data to Local
 func GetDataSynchronisation(c *fiber.Ctx) error {
 	db := database.DB
@@ -177,6 +177,19 @@ func CreateCaisse(c *fiber.Ctx) error {
 
 	if err := c.BodyParser(&p); err != nil {
 		return err
+	}
+
+	// Vérifier si la caisse existe déjà
+	var existingCaisse models.Caisse
+	database.DB.Where("uuid = ?", p.UUID).First(&existingCaisse)
+	if existingCaisse.UUID != "" {
+		return c.Status(409).JSON(
+			fiber.Map{
+				"status":  "error",
+				"message": "Caisse avec cet UUID existe déjà",
+				"data":    nil,
+			},
+		)
 	}
 
 	p.Sync = true

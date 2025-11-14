@@ -180,6 +180,20 @@ func CreateCaisseItem(c *fiber.Ctx) error {
 	if err := c.BodyParser(&p); err != nil {
 		return err
 	}
+
+	// Vérifier si le caisse item existe déjà
+	var existingCaisseItem models.CaisseItem
+	database.DB.Where("uuid = ?", p.UUID).First(&existingCaisseItem)
+	if existingCaisseItem.UUID != "" {
+		return c.Status(409).JSON(
+			fiber.Map{
+				"status":  "error",
+				"message": "CaisseItem avec cet UUID existe déjà",
+				"data":    nil,
+			},
+		)
+	}
+
 	p.Sync = true
 	database.DB.Create(p)
 

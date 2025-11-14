@@ -7,7 +7,6 @@ import (
 
 	"github.com/kgermando/ipos-stock-api/database"
 	"github.com/kgermando/ipos-stock-api/models"
-	"github.com/kgermando/ipos-stock-api/utils"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -128,9 +127,9 @@ func GetFournisseur(c *fiber.Ctx) error {
 
 	var fournisseur models.Fournisseur
 	db.Where("uuid = ?", uuid).
-	Preload("Pos").
-	Preload("Stocks.Product").
-	First(&fournisseur)
+		Preload("Pos").
+		Preload("Stocks.Product").
+		First(&fournisseur)
 	if fournisseur.EntrepriseName == "" {
 		return c.Status(404).JSON(
 			fiber.Map{
@@ -157,7 +156,18 @@ func CreateFournisseur(c *fiber.Ctx) error {
 		return err
 	}
 
-	p.UUID = utils.GenerateUUID()
+	// Vérifier si le fournisseur existe déjà
+	var existingFournisseur models.Fournisseur
+	database.DB.Where("uuid = ?", p.UUID).First(&existingFournisseur)
+	if existingFournisseur.UUID != "" {
+		return c.Status(409).JSON(
+			fiber.Map{
+				"status":  "error",
+				"message": "Fournisseur avec cet UUID existe déjà",
+				"data":    nil,
+			},
+		)
+	}
 
 	p.Sync = true
 

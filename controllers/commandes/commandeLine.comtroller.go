@@ -193,6 +193,19 @@ func CreateCommandeLine(c *fiber.Ctx) error {
 		return err
 	}
 
+	// Vérifier si la ligne de commande existe déjà
+	var existingCommandeLine models.CommandeLine
+	database.DB.Where("uuid = ?", p.UUID).First(&existingCommandeLine)
+	if existingCommandeLine.UUID != "" {
+		return c.Status(409).JSON(
+			fiber.Map{
+				"status":  "error",
+				"message": "CommandeLine avec cet UUID existe déjà",
+				"data":    nil,
+			},
+		)
+	}
+
 	p.Sync = true
 	database.DB.Create(p)
 

@@ -7,7 +7,6 @@ import (
 
 	"github.com/kgermando/ipos-stock-api/database"
 	"github.com/kgermando/ipos-stock-api/models"
-	"github.com/kgermando/ipos-stock-api/utils"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -153,7 +152,19 @@ func CreateClient(c *fiber.Ctx) error {
 		return err
 	}
 
-	p.UUID = utils.GenerateUUID()
+	// Vérifier si le client existe déjà
+	var existingClient models.Client
+	database.DB.Where("uuid = ?", p.UUID).First(&existingClient)
+	if existingClient.UUID != "" {
+		return c.Status(409).JSON(
+			fiber.Map{
+				"status":  "error",
+				"message": "Client avec cet UUID existe déjà",
+				"data":    nil,
+			},
+		)
+	}
+
 	p.Sync = true
 	database.DB.Create(p)
 

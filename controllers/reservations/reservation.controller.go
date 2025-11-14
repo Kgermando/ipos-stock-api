@@ -5,7 +5,6 @@ import (
 
 	"github.com/kgermando/ipos-stock-api/database"
 	"github.com/kgermando/ipos-stock-api/models"
-	"github.com/kgermando/ipos-stock-api/utils"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -244,7 +243,19 @@ func CreateReservation(c *fiber.Ctx) error {
 		)
 	}
 
-	p.UUID = utils.GenerateUUID()
+	// Vérifier si la réservation existe déjà
+	var existingReservation models.Reservation
+	database.DB.Where("uuid = ?", p.UUID).First(&existingReservation)
+	if existingReservation.UUID != "" {
+		return c.Status(409).JSON(
+			fiber.Map{
+				"status":  "error",
+				"message": "Reservation avec cet UUID existe déjà",
+				"data":    nil,
+			},
+		)
+	}
+
 	p.Sync = true
 
 	database.DB.Create(p)

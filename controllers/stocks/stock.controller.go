@@ -185,6 +185,19 @@ func CreateStock(c *fiber.Ctx) error {
 		return err
 	}
 
+	// Vérifier si le stock existe déjà
+	var existingStock models.Stock
+	database.DB.Where("uuid = ?", p.UUID).First(&existingStock)
+	if existingStock.UUID != "" {
+		return c.Status(409).JSON(
+			fiber.Map{
+				"status":  "error",
+				"message": "Stock avec cet UUID existe déjà",
+				"data":    nil,
+			},
+		)
+	}
+
 	p.Sync = true
 	database.DB.Create(p)
 

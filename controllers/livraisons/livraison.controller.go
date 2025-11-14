@@ -7,7 +7,6 @@ import (
 
 	"github.com/kgermando/ipos-stock-api/database"
 	"github.com/kgermando/ipos-stock-api/models"
-	"github.com/kgermando/ipos-stock-api/utils"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -178,7 +177,19 @@ func CreateLivraison(c *fiber.Ctx) error {
 		return err
 	}
 
-	p.UUID = utils.GenerateUUID()
+	// Vérifier si la livraison existe déjà
+	var existingLivraison models.Livraison
+	database.DB.Where("uuid = ?", p.UUID).First(&existingLivraison)
+	if existingLivraison.UUID != "" {
+		return c.Status(409).JSON(
+			fiber.Map{
+				"status":  "error",
+				"message": "Livraison avec cet UUID existe déjà",
+				"data":    nil,
+			},
+		)
+	}
+
 	p.Sync = true
 	database.DB.Create(p)
 

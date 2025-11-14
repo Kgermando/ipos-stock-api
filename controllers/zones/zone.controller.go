@@ -7,7 +7,6 @@ import (
 
 	"github.com/kgermando/ipos-stock-api/database"
 	"github.com/kgermando/ipos-stock-api/models"
-	"github.com/kgermando/ipos-stock-api/utils"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -153,7 +152,19 @@ func CreateZone(c *fiber.Ctx) error {
 		return err
 	}
 
-	p.UUID = utils.GenerateUUID()
+	// Vérifier si la zone existe déjà
+	var existingZone models.Zone
+	database.DB.Where("uuid = ?", p.UUID).First(&existingZone)
+	if existingZone.UUID != "" {
+		return c.Status(409).JSON(
+			fiber.Map{
+				"status":  "error",
+				"message": "Zone avec cet UUID existe déjà",
+				"data":    nil,
+			},
+		)
+	}
+
 	p.Sync = true
 	database.DB.Create(p)
 

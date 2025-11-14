@@ -166,6 +166,20 @@ func CreateRestitution(c *fiber.Ctx) error {
 	if err := c.BodyParser(&p); err != nil {
 		return err
 	}
+
+	// Vérifier si la restitution existe déjà
+	var existingRestitution models.Restitution
+	database.DB.Where("uuid = ?", p.UUID).First(&existingRestitution)
+	if existingRestitution.UUID != "" {
+		return c.Status(409).JSON(
+			fiber.Map{
+				"status":  "error",
+				"message": "Restitution avec cet UUID existe déjà",
+				"data":    nil,
+			},
+		)
+	}
+
 	p.Sync = true
 	database.DB.Create(p)
 

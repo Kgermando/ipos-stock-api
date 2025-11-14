@@ -5,7 +5,6 @@ import (
 
 	"github.com/kgermando/ipos-stock-api/database"
 	"github.com/kgermando/ipos-stock-api/models"
-	"github.com/kgermando/ipos-stock-api/utils"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -244,7 +243,19 @@ func CreatePlat(c *fiber.Ctx) error {
 		)
 	}
 
-	p.UUID = utils.GenerateUUID()
+	// Vérifier si le plat existe déjà
+	var existingPlat models.Plat
+	database.DB.Where("uuid = ?", p.UUID).First(&existingPlat)
+	if existingPlat.UUID != "" {
+		return c.Status(409).JSON(
+			fiber.Map{
+				"status":  "error",
+				"message": "Plat avec cet UUID existe déjà",
+				"data":    nil,
+			},
+		)
+	}
+
 	p.Sync = true
 
 	database.DB.Create(p)
