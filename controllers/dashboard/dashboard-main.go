@@ -1256,49 +1256,55 @@ func getCaisseStatistics(entrepriseUUID, posUUID string, startDate, endDate *tim
 	var results struct {
 		TotalEntrees       float64
 		TotalSorties       float64
+		MontantDebut       float64
 		NombreTransactions int64
 	}
 
 	baseQuery.Select(`
 		SUM(CASE WHEN type_transaction = 'Entree' THEN montant ELSE 0 END) as total_entrees,
 		SUM(CASE WHEN type_transaction = 'Sortie' THEN montant ELSE 0 END) as total_sorties,
+		SUM(CASE WHEN type_transaction = 'MontantDebut' THEN montant ELSE 0 END) as montant_debut,
 		COUNT(*) as nombre_transactions
 	`).Scan(&results)
 
-	soldeCaisse := results.TotalEntrees - results.TotalSorties
+	// Arrondir les valeurs principales
+	totalEntrees := math.Round(results.TotalEntrees*100) / 100
+	totalSorties := math.Round(results.TotalSorties*100) / 100
+	montantDebut := math.Round(results.MontantDebut*100) / 100
+	soldeCaisse := math.Round((totalEntrees+montantDebut-totalSorties)*100) / 100
 
 	// Calculer les moyennes
 	var moyenneEntree, moyenneSortie float64
 
 	var nombreEntrees, nombreSorties int64
-	baseQuery.Where("type_transaction = ?", "Entree").Count(&nombreEntrees)
+	db.Model(&models.CaisseItem{}).Where("caisse_uuid IN ? AND type_transaction = ?", caisseUUIDs, "Entree").Count(&nombreEntrees)
+	db.Model(&models.CaisseItem{}).Where("caisse_uuid IN ? AND type_transaction = ?", caisseUUIDs, "Sortie").Count(&nombreSorties)
 
-	baseQueryCopy := db.Model(&models.CaisseItem{}).Where("caisse_uuid IN ?", caisseUUIDs)
 	if startDate != nil && endDate != nil {
-		baseQueryCopy = baseQueryCopy.Where("created_at BETWEEN ? AND ?", startDate, endDate)
+		db.Model(&models.CaisseItem{}).Where("caisse_uuid IN ? AND type_transaction = ? AND created_at BETWEEN ? AND ?", caisseUUIDs, "Entree", startDate, endDate).Count(&nombreEntrees)
+		db.Model(&models.CaisseItem{}).Where("caisse_uuid IN ? AND type_transaction = ? AND created_at BETWEEN ? AND ?", caisseUUIDs, "Sortie", startDate, endDate).Count(&nombreSorties)
 	}
-	baseQueryCopy.Where("type_transaction = ?", "Sortie").Count(&nombreSorties)
 
 	if nombreEntrees > 0 {
-		moyenneEntree = results.TotalEntrees / float64(nombreEntrees)
+		moyenneEntree = math.Round((totalEntrees/float64(nombreEntrees))*100) / 100
 	}
 	if nombreSorties > 0 {
-		moyenneSortie = results.TotalSorties / float64(nombreSorties)
+		moyenneSortie = math.Round((totalSorties/float64(nombreSorties))*100) / 100
 	}
 
 	// Calculer les ratios
 	var ratioEntreeSortie float64
-	if results.TotalSorties > 0 {
-		ratioEntreeSortie = results.TotalEntrees / results.TotalSorties
+	if totalSorties > 0 {
+		ratioEntreeSortie = math.Round((totalEntrees/totalSorties)*100) / 100
 	}
 
 	var tauxLiquidite float64
-	if results.TotalEntrees > 0 {
-		tauxLiquidite = (soldeCaisse / results.TotalEntrees) * 100
+	if totalEntrees > 0 {
+		tauxLiquidite = math.Round((soldeCaisse/totalEntrees)*10000) / 100
 	}
 
-	// Calculer l'évolution (simulée pour cet exemple)
-	evolution := calculateCaisseEvolution(entrepriseUUID, posUUID, startDate, endDate)
+	// Calculer l'évolution
+	evolution := calculateCaisseEvolution(entrepriseUUID, posUUID, caisseUUIDs, startDate, endDate)
 
 	// Analyser le jour le plus actif
 	jourLePlusActif := getJourLePlusActif(caisseUUIDs, startDate, endDate)
@@ -1311,15 +1317,16 @@ func getCaisseStatistics(entrepriseUUID, posUUID string, startDate, endDate *tim
 	if startDate != nil && endDate != nil {
 		nombreJours := endDate.Sub(*startDate).Hours() / 24
 		if nombreJours > 0 {
-			nombreTransactionsParJour = float64(results.NombreTransactions) / nombreJours
+			nombreTransactionsParJour = math.Round((float64(results.NombreTransactions)/nombreJours)*10) / 10
 		}
 	}
 
 	return models.CaisseStatistics{
 		SoldeCaisse:               soldeCaisse,
-		TotalEntrees:              results.TotalEntrees,
-		TotalSorties:              results.TotalSorties,
-		NombreTransactions:        results.NombreTransactions,
+		TotalEntrees:              totalEntrees,
+		TotalSorties:              totalSorties,
+		MontantDebut:              montantDebut,
+		NombreTransactions:        int(results.NombreTransactions),
 		MoyenneEntree:             moyenneEntree,
 		MoyenneSortie:             moyenneSortie,
 		RatioEntreeSortie:         ratioEntreeSortie,
@@ -1329,7 +1336,7 @@ func getCaisseStatistics(entrepriseUUID, posUUID string, startDate, endDate *tim
 		Tendance:                  evolution.tendance,
 		JourLePlusActif:           jourLePlusActif,
 		HeureLaPlusActive:         heureLaPlusActive,
-		NombreTransactionsParJour: math.Round(nombreTransactionsParJour*10) / 10,
+		NombreTransactionsParJour: nombreTransactionsParJour,
 	}
 }
 
@@ -1387,23 +1394,22 @@ func getRepartitionTransactionsData(entrepriseUUID, posUUID string, startDate, e
 		caisseUUIDs = append(caisseUUIDs, caisse.UUID)
 	}
 
-	// Récupérer les transactions groupées par libellé
+	// Récupérer les transactions groupées par type_transaction
 	var results []struct {
-		Libelle string
-		Montant float64
+		TypeTransaction string
+		Montant         float64
 	}
 
 	query := db.Table("caisse_items ci").
-		Select("ci.libelle, SUM(ci.montant) as montant").
+		Select("ci.type_transaction, SUM(ci.montant) as montant").
 		Where("ci.caisse_uuid IN ?", caisseUUIDs)
 
 	if startDate != nil && endDate != nil {
 		query = query.Where("ci.created_at BETWEEN ? AND ?", startDate, endDate)
 	}
 
-	query.Group("ci.libelle").
+	query.Group("ci.type_transaction").
 		Order("montant DESC").
-		Limit(8).
 		Scan(&results)
 
 	if len(results) == 0 {
@@ -1426,20 +1432,39 @@ func getRepartitionTransactionsData(entrepriseUUID, posUUID string, startDate, e
 	var percentages []float64
 	var colors []string
 
-	colorPalette := []string{
-		"#28a745", "#007bff", "#ffc107", "#dc3545", "#6f42c1",
-		"#20c997", "#fd7e14", "#6c757d",
+	// Palette de couleurs pour chaque type de transaction
+	colorMap := map[string]string{
+		"Entree":       "#28a745", // Vert pour les entrées
+		"Sortie":       "#dc3545", // Rouge pour les sorties
+		"MontantDebut": "#007bff", // Bleu pour le montant initial
 	}
 
-	for i, result := range results {
-		labels = append(labels, result.Libelle)
+	// Noms affichables pour chaque type
+	typeNames := map[string]string{
+		"Entree":       "Entrées",
+		"Sortie":       "Sorties",
+		"MontantDebut": "Montant Initial",
+	}
+
+	for _, result := range results {
+		displayName := typeNames[result.TypeTransaction]
+		if displayName == "" {
+			displayName = result.TypeTransaction
+		}
+
+		labels = append(labels, displayName)
 		values = append(values, result.Montant)
 		if total > 0 {
 			percentages = append(percentages, (result.Montant/total)*100)
 		} else {
 			percentages = append(percentages, 0)
 		}
-		colors = append(colors, colorPalette[i%len(colorPalette)])
+
+		color := colorMap[result.TypeTransaction]
+		if color == "" {
+			color = "#6c757d" // Gris par défaut
+		}
+		colors = append(colors, color)
 	}
 
 	return models.RepartitionTransactionsData{
@@ -1470,28 +1495,28 @@ func getTopTransactions(entrepriseUUID, posUUID string, startDate, endDate *time
 		caisseUUIDs = append(caisseUUIDs, caisse.UUID)
 	}
 
-	// Top entrées
+	// Top 5 entrées (exclut MontantDebut qui est un montant initial)
 	var topEntrees []models.CaisseItem
 	entreeQuery := db.Where("caisse_uuid IN ? AND type_transaction = ?", caisseUUIDs, "Entree")
 	if startDate != nil && endDate != nil {
 		entreeQuery = entreeQuery.Where("created_at BETWEEN ? AND ?", startDate, endDate)
 	}
-	entreeQuery.Order("montant DESC").Limit(limit).Find(&topEntrees)
+	entreeQuery.Order("montant DESC, created_at DESC").Limit(5).Find(&topEntrees)
 
-	// Top sorties
+	// Top 5 sorties
 	var topSorties []models.CaisseItem
 	sortieQuery := db.Where("caisse_uuid IN ? AND type_transaction = ?", caisseUUIDs, "Sortie")
 	if startDate != nil && endDate != nil {
 		sortieQuery = sortieQuery.Where("created_at BETWEEN ? AND ?", startDate, endDate)
 	}
-	sortieQuery.Order("montant DESC").Limit(limit).Find(&topSorties)
+	sortieQuery.Order("montant DESC, created_at DESC").Limit(5).Find(&topSorties)
 
-	// Convertir en format de réponse
+	// Convertir en format de réponse avec arrondi des montants
 	var topEntreesResponse []models.TopTransaction
 	for _, entree := range topEntrees {
 		topEntreesResponse = append(topEntreesResponse, models.TopTransaction{
 			Libelle:   entree.Libelle,
-			Montant:   entree.Montant,
+			Montant:   math.Round(entree.Montant*100) / 100,
 			Type:      entree.TypeTransaction,
 			Date:      entree.CreatedAt,
 			Reference: entree.Reference,
@@ -1502,7 +1527,7 @@ func getTopTransactions(entrepriseUUID, posUUID string, startDate, endDate *time
 	for _, sortie := range topSorties {
 		topSortiesResponse = append(topSortiesResponse, models.TopTransaction{
 			Libelle:   sortie.Libelle,
-			Montant:   sortie.Montant,
+			Montant:   math.Round(sortie.Montant*100) / 100,
 			Type:      sortie.TypeTransaction,
 			Date:      sortie.CreatedAt,
 			Reference: sortie.Reference,
@@ -1537,22 +1562,90 @@ func getEmptyCaisseStatistics() models.CaisseStatistics {
 	}
 }
 
-// calculateCaisseEvolution calcule l'évolution de la caisse
-func calculateCaisseEvolution(entrepriseUUID, posUUID string, startDate, endDate *time.Time) struct {
+// calculateCaisseEvolution calcule l'évolution de la caisse par rapport à la période précédente
+func calculateCaisseEvolution(entrepriseUUID, posUUID string, caisseUUIDs []string, startDate, endDate *time.Time) struct {
 	montant    float64
 	percentage float64
 	tendance   string
 } {
-	// Pour simplifier, on retourne des valeurs par défaut
-	// Dans une implémentation complète, on comparerait avec la période précédente
+	db := database.DB
+
+	if startDate == nil || endDate == nil || len(caisseUUIDs) == 0 {
+		return struct {
+			montant    float64
+			percentage float64
+			tendance   string
+		}{0, 0, "stable"}
+	}
+
+	// Calculer la période précédente (même durée que la période actuelle)
+	nombreJours := int(endDate.Sub(*startDate).Hours() / 24)
+	if nombreJours == 0 {
+		nombreJours = 1
+	}
+
+	previousStartDate := startDate.AddDate(0, 0, -nombreJours)
+	previousEndDate := *startDate
+
+	// Calculer le solde de la période actuelle
+	var currentResults struct {
+		TotalEntrees float64
+		TotalSorties float64
+		MontantDebut float64
+	}
+
+	db.Model(&models.CaisseItem{}).
+		Where("caisse_uuid IN ? AND created_at BETWEEN ? AND ?", caisseUUIDs, startDate, endDate).
+		Select(`
+			SUM(CASE WHEN type_transaction = 'Entree' THEN montant ELSE 0 END) as total_entrees,
+			SUM(CASE WHEN type_transaction = 'Sortie' THEN montant ELSE 0 END) as total_sorties,
+			SUM(CASE WHEN type_transaction = 'MontantDebut' THEN montant ELSE 0 END) as montant_debut
+		`).Scan(&currentResults)
+
+	currentSolde := currentResults.TotalEntrees + currentResults.MontantDebut - currentResults.TotalSorties
+
+	// Calculer le solde de la période précédente
+	var previousResults struct {
+		TotalEntrees float64
+		TotalSorties float64
+		MontantDebut float64
+	}
+
+	db.Model(&models.CaisseItem{}).
+		Where("caisse_uuid IN ? AND created_at BETWEEN ? AND ?", caisseUUIDs, previousStartDate, previousEndDate).
+		Select(`
+			SUM(CASE WHEN type_transaction = 'Entree' THEN montant ELSE 0 END) as total_entrees,
+			SUM(CASE WHEN type_transaction = 'Sortie' THEN montant ELSE 0 END) as total_sorties,
+			SUM(CASE WHEN type_transaction = 'MontantDebut' THEN montant ELSE 0 END) as montant_debut
+		`).Scan(&previousResults)
+
+	previousSolde := previousResults.TotalEntrees + previousResults.MontantDebut - previousResults.TotalSorties
+
+	// Calculer l'évolution
+	evolution := currentSolde - previousSolde
+	var evolutionPercentage float64
+	if previousSolde != 0 {
+		evolutionPercentage = math.Round((evolution/math.Abs(previousSolde))*10000) / 100
+	}
+
+	// Déterminer la tendance
+	var tendance string
+	if math.Abs(evolutionPercentage) < 5 {
+		tendance = "stable"
+	} else if evolutionPercentage > 0 {
+		tendance = "hausse"
+	} else {
+		tendance = "baisse"
+	}
+
 	return struct {
 		montant    float64
 		percentage float64
 		tendance   string
 	}{
-		montant:    0,
-		percentage: 0,
-		tendance:   "stable",
+		montant:    math.Round(evolution*100) / 100,
+		percentage: evolutionPercentage,
+		tendance:   tendance,
 	}
 }
 
@@ -1637,7 +1730,18 @@ func getFluxParHeure(caisseUUIDs []string, date time.Time) models.FluxTresorerie
 	var sorties []float64
 	var soldes []float64
 
-	var soldeCumule float64
+	// Récupérer le MontantDebut au début de la journée
+	var montantDebut float64
+	startOfDay := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
+	endOfDay := startOfDay.Add(24*time.Hour - time.Nanosecond)
+
+	db.Table("caisse_items ci").
+		Select("COALESCE(SUM(ci.montant), 0) as montant_debut").
+		Where("ci.caisse_uuid IN ? AND ci.type_transaction = 'MontantDebut' AND ci.created_at BETWEEN ? AND ?", caisseUUIDs, startOfDay, endOfDay).
+		Scan(&montantDebut)
+
+	// Initialiser le solde cumulé avec le montant de début
+	var soldeCumule float64 = montantDebut
 
 	for hour := 0; hour < 24; hour++ {
 		var result struct {
@@ -1650,8 +1754,8 @@ func getFluxParHeure(caisseUUIDs []string, date time.Time) models.FluxTresorerie
 
 		db.Table("caisse_items ci").
 			Select(`
-				SUM(CASE WHEN ci.type_transaction = 'Entree' THEN ci.montant ELSE 0 END) as total_entree,
-				SUM(CASE WHEN ci.type_transaction = 'Sortie' THEN ci.montant ELSE 0 END) as total_sortie
+				COALESCE(SUM(CASE WHEN ci.type_transaction = 'Entree' THEN ci.montant ELSE 0 END), 0) as total_entree,
+				COALESCE(SUM(CASE WHEN ci.type_transaction = 'Sortie' THEN ci.montant ELSE 0 END), 0) as total_sortie
 			`).
 			Where("ci.caisse_uuid IN ? AND ci.created_at BETWEEN ? AND ?", caisseUUIDs, startHour, endHour).
 			Scan(&result)
@@ -1659,9 +1763,9 @@ func getFluxParHeure(caisseUUIDs []string, date time.Time) models.FluxTresorerie
 		soldeCumule += result.TotalEntree - result.TotalSortie
 
 		dates = append(dates, fmt.Sprintf("%dh", hour))
-		entrees = append(entrees, result.TotalEntree)
-		sorties = append(sorties, result.TotalSortie)
-		soldes = append(soldes, soldeCumule)
+		entrees = append(entrees, math.Round(result.TotalEntree*100)/100)
+		sorties = append(sorties, math.Round(result.TotalSortie*100)/100)
+		soldes = append(soldes, math.Round(soldeCumule*100)/100)
 	}
 
 	return models.FluxTresorerieData{
@@ -1681,7 +1785,15 @@ func getFluxParJour(caisseUUIDs []string, startDate, endDate time.Time) models.F
 	var sorties []float64
 	var soldes []float64
 
-	var soldeCumule float64
+	// Récupérer le MontantDebut sur toute la période
+	var montantDebut float64
+	db.Table("caisse_items ci").
+		Select("COALESCE(SUM(ci.montant), 0) as montant_debut").
+		Where("ci.caisse_uuid IN ? AND ci.type_transaction = 'MontantDebut' AND ci.created_at BETWEEN ? AND ?", caisseUUIDs, startDate, endDate).
+		Scan(&montantDebut)
+
+	// Initialiser le solde cumulé avec le montant de début
+	var soldeCumule float64 = montantDebut
 	currentDate := startDate
 
 	for currentDate.Before(endDate) || currentDate.Equal(endDate) {
@@ -1695,8 +1807,8 @@ func getFluxParJour(caisseUUIDs []string, startDate, endDate time.Time) models.F
 
 		db.Table("caisse_items ci").
 			Select(`
-				SUM(CASE WHEN ci.type_transaction = 'Entree' THEN ci.montant ELSE 0 END) as total_entree,
-				SUM(CASE WHEN ci.type_transaction = 'Sortie' THEN ci.montant ELSE 0 END) as total_sortie
+				COALESCE(SUM(CASE WHEN ci.type_transaction = 'Entree' THEN ci.montant ELSE 0 END), 0) as total_entree,
+				COALESCE(SUM(CASE WHEN ci.type_transaction = 'Sortie' THEN ci.montant ELSE 0 END), 0) as total_sortie
 			`).
 			Where("ci.caisse_uuid IN ? AND ci.created_at BETWEEN ? AND ?", caisseUUIDs, startDay, endDay).
 			Scan(&result)
@@ -1704,9 +1816,9 @@ func getFluxParJour(caisseUUIDs []string, startDate, endDate time.Time) models.F
 		soldeCumule += result.TotalEntree - result.TotalSortie
 
 		dates = append(dates, currentDate.Format("02/01"))
-		entrees = append(entrees, result.TotalEntree)
-		sorties = append(sorties, result.TotalSortie)
-		soldes = append(soldes, soldeCumule)
+		entrees = append(entrees, math.Round(result.TotalEntree*100)/100)
+		sorties = append(sorties, math.Round(result.TotalSortie*100)/100)
+		soldes = append(soldes, math.Round(soldeCumule*100)/100)
 
 		currentDate = currentDate.AddDate(0, 0, 1)
 	}
@@ -1717,4 +1829,196 @@ func getFluxParJour(caisseUUIDs []string, startDate, endDate time.Time) models.F
 		Sorties: sorties,
 		Soldes:  soldes,
 	}
+}
+
+// GetAnalyseCategories retourne l'analyse des catégories de transactions
+func GetAnalyseCategories(c *fiber.Ctx) error {
+	entrepriseUUID := c.Query("entreprise_uuid")
+	posUUID := c.Query("pos_uuid")
+	startDateStr := c.Query("start_date")
+	endDateStr := c.Query("end_date")
+
+	if entrepriseUUID == "" || posUUID == "" {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "Les paramètres entreprise_uuid et pos_uuid sont requis",
+		})
+	}
+
+	var startDate, endDate *time.Time
+	if startDateStr != "" && endDateStr != "" {
+		start, err1 := time.Parse("2006-01-02T15:04:05Z07:00", startDateStr)
+		end, err2 := time.Parse("2006-01-02T15:04:05Z07:00", endDateStr)
+		if err1 == nil && err2 == nil {
+			startDate = &start
+			endDate = &end
+		}
+	}
+
+	categories := analyseCategories(entrepriseUUID, posUUID, startDate, endDate)
+	return c.JSON(categories)
+}
+
+// GetPrevisionsTresorerie génère des prévisions de trésorerie
+func GetPrevisionsTresorerie(c *fiber.Ctx) error {
+	entrepriseUUID := c.Query("entreprise_uuid")
+	posUUID := c.Query("pos_uuid")
+	nombreJoursStr := c.Query("nombre_jours", "7")
+
+	if entrepriseUUID == "" || posUUID == "" {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "Les paramètres entreprise_uuid et pos_uuid sont requis",
+		})
+	}
+
+	nombreJours, err := strconv.Atoi(nombreJoursStr)
+	if err != nil {
+		nombreJours = 7
+	}
+
+	previsions := genererPrevisions(entrepriseUUID, posUUID, nombreJours)
+	return c.JSON(previsions)
+}
+
+// analyseCategories analyse les catégories de transactions par libellé
+func analyseCategories(entrepriseUUID, posUUID string, startDate, endDate *time.Time) []models.CategorieAnalysis {
+	db := database.DB
+
+	// Récupérer les caisses
+	var caisses []models.Caisse
+	db.Where("entreprise_uuid = ? AND pos_uuid = ?", entrepriseUUID, posUUID).Find(&caisses)
+
+	if len(caisses) == 0 {
+		return []models.CategorieAnalysis{}
+	}
+
+	var caisseUUIDs []string
+	for _, caisse := range caisses {
+		caisseUUIDs = append(caisseUUIDs, caisse.UUID)
+	}
+
+	// Grouper par libellé
+	var results []struct {
+		Libelle            string
+		TotalMontant       float64
+		NombreTransactions int64
+	}
+
+	query := db.Table("caisse_items ci").
+		Select("ci.libelle, SUM(ci.montant) as total_montant, COUNT(*) as nombre_transactions").
+		Where("ci.caisse_uuid IN ?", caisseUUIDs)
+
+	if startDate != nil && endDate != nil {
+		query = query.Where("ci.created_at BETWEEN ? AND ?", startDate, endDate)
+	}
+
+	query.Group("ci.libelle").
+		Order("total_montant DESC").
+		Scan(&results)
+
+	if len(results) == 0 {
+		return []models.CategorieAnalysis{}
+	}
+
+	// Calculer le total pour les pourcentages
+	var total float64
+	for _, result := range results {
+		total += result.TotalMontant
+	}
+
+	// Créer les analyses
+	var categories []models.CategorieAnalysis
+	for _, result := range results {
+		var pourcentage float64
+		if total > 0 {
+			pourcentage = math.Round((result.TotalMontant/total)*10000) / 100
+		}
+
+		var moyenne float64
+		if result.NombreTransactions > 0 {
+			moyenne = math.Round((result.TotalMontant/float64(result.NombreTransactions))*100) / 100
+		}
+
+		// Pour la tendance, on retourne 'stable' par défaut
+		// Une implémentation plus avancée comparerait avec la période précédente
+		categories = append(categories, models.CategorieAnalysis{
+			Categorie:          result.Libelle,
+			TotalMontant:       math.Round(result.TotalMontant*100) / 100,
+			NombreTransactions: int(result.NombreTransactions),
+			Pourcentage:        pourcentage,
+			Moyenne:            moyenne,
+			Tendance:           "stable",
+		})
+	}
+
+	return categories
+}
+
+// genererPrevisions génère des prévisions de trésorerie basées sur l'historique
+func genererPrevisions(entrepriseUUID, posUUID string, nombreJours int) []models.PrevisionTresorerie {
+	db := database.DB
+
+	// Récupérer l'historique des 30 derniers jours
+	endDate := time.Now()
+	startDate := endDate.AddDate(0, 0, -30)
+
+	// Récupérer les caisses
+	var caisses []models.Caisse
+	db.Where("entreprise_uuid = ? AND pos_uuid = ?", entrepriseUUID, posUUID).Find(&caisses)
+
+	if len(caisses) == 0 {
+		return []models.PrevisionTresorerie{}
+	}
+
+	var caisseUUIDs []string
+	for _, caisse := range caisses {
+		caisseUUIDs = append(caisseUUIDs, caisse.UUID)
+	}
+
+	// Calculer les moyennes des 30 derniers jours
+	var results struct {
+		MoyenneEntree float64
+		MoyenneSortie float64
+		SoldeActuel   float64
+	}
+
+	db.Table("caisse_items ci").
+		Select(`
+			AVG(CASE WHEN ci.type_transaction = 'Entree' THEN ci.montant ELSE 0 END) as moyenne_entree,
+			AVG(CASE WHEN ci.type_transaction = 'Sortie' THEN ci.montant ELSE 0 END) as moyenne_sortie,
+			SUM(CASE WHEN ci.type_transaction = 'Entree' THEN ci.montant ELSE 0 END) + 
+			SUM(CASE WHEN ci.type_transaction = 'MontantDebut' THEN ci.montant ELSE 0 END) -
+			SUM(CASE WHEN ci.type_transaction = 'Sortie' THEN ci.montant ELSE 0 END) as solde_actuel
+		`).
+		Where("ci.caisse_uuid IN ? AND ci.created_at BETWEEN ? AND ?", caisseUUIDs, startDate, endDate).
+		Scan(&results)
+
+	// Générer les prévisions
+	var previsions []models.PrevisionTresorerie
+	soldeCumule := results.SoldeActuel
+
+	for i := 1; i <= nombreJours; i++ {
+		datePrevisionnelle := time.Now().AddDate(0, 0, i)
+
+		// Ajouter une variation aléatoire de ±20% pour simuler la réalité
+		// Dans une version production, on utiliserait un modèle de prévision plus sophistiqué
+		variationEntree := 1.0 + (float64(i%5)-2.5)/10 // Variation entre 0.75 et 1.25
+		variationSortie := 1.0 + (float64(i%7)-3.5)/10 // Variation entre 0.65 et 1.35
+
+		previsionEntree := results.MoyenneEntree * variationEntree
+		previsionSortie := results.MoyenneSortie * variationSortie
+		soldeCumule += previsionEntree - previsionSortie
+
+		// Calculer le niveau de confiance (diminue avec le temps)
+		confiance := math.Max(50, 95-float64(i*5))
+
+		previsions = append(previsions, models.PrevisionTresorerie{
+			Date:            datePrevisionnelle.Format("02/01"),
+			PrevisionEntree: math.Round(previsionEntree*100) / 100,
+			PrevisionSortie: math.Round(previsionSortie*100) / 100,
+			PrevisionSolde:  math.Round(soldeCumule*100) / 100,
+			Confiance:       confiance,
+		})
+	}
+
+	return previsions
 }

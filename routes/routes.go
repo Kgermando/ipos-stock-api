@@ -308,37 +308,7 @@ func Setup(app *fiber.App) {
 	main.Get("/flux-tresorerie", dashboard.GetFluxTresorerieData)
 	main.Get("/repartition-transactions", dashboard.GetRepartitionTransactionsData)
 	main.Get("/top-transactions", dashboard.GetTopTransactions)
-
-	// Tresorerie - Nouveau système complet de dashboard
-	tresorerie := dash.Group("/tresoreries")
-	// Endpoint principal pour récupérer toutes les données du dashboard
-	tresorerie.Get("/", dashboard.GetDashboardTresorerie)
-
-	// Endpoints pour les graphiques
-	tresorerie.Get("/evolution-chart", dashboard.GetEvolutionChartData)
-	tresorerie.Get("/repartition-chart", dashboard.GetRepartitionChartData)
-	// Endpoints complémentaires
-	tresorerie.Get("/financial-summary", dashboard.GetFinancialSummary)
-	tresorerie.Get("/top-caisses", dashboard.GetTopCaisses)
-	tresorerie.Get("/alerts-recommendations", dashboard.GetAlertsAndRecommendations)
-	tresorerie.Get("/flux-chart", dashboard.SetupFluxChart)
-	tresorerie.Get("/performance-caisse", dashboard.PerformanceCaisse)
-
-	// KPI Dashboard - Nouveaux endpoints améliorés
-	kpi := dash.Group("/kpi")
-
-	// Endpoints principaux pour le frontend Angular
-	kpi.Get("/global-kpis", dashboard.GlobalKpis)
-	kpi.Get("/evolution-vente", dashboard.GetEvolutionVente)
-	kpi.Get("/performance-vente", dashboard.GetPerformanceVente)
-	kpi.Get("/best-selling-product", dashboard.GetBestSellingProduct)
-	kpi.Get("/stock-kpis", dashboard.GetStockKpis)
-	kpi.Get("/stock-faible", dashboard.GetStockFaible)
-	kpi.Get("/stock-chart", dashboard.SetupStockChart)
-	kpi.Get("/alerts-kpis", dashboard.GetAlertsKpis)
-
-	// Endpoints legacy pour compatibilité
-	kpi.Get("/global", dashboard.GlobalKpiSummary)
-	kpi.Get("/best-selling-prroduct", dashboard.BestSellingProduct)
+	main.Get("/analyse-categories", dashboard.GetAnalyseCategories)
+	main.Get("/previsions-tresorerie", dashboard.GetPrevisionsTresorerie)
 
 }

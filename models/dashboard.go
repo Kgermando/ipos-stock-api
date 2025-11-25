@@ -95,25 +95,42 @@ type LivreurPerformance struct {
 	TauxReussite    float64 `json:"tauxReussite"`
 }
 
-// CaisseStatistics représente les statistiques de la caisse
+ 
+// TopTransactions représente les tops transactions groupées
+type TopTransactions struct {
+	TopEntrees []TopTransaction `json:"topEntrees"`
+	TopSorties []TopTransaction `json:"topSorties"`
+}
+
+
+
+// CaisseStatistics représente les statistiques principales de la caisse
 type CaisseStatistics struct {
-	SoldeCaisse               float64 `json:"soldeCaisse"`
-	TotalEntrees              float64 `json:"totalEntrees"`
-	TotalSorties              float64 `json:"totalSorties"`
-	NombreTransactions        int64   `json:"nombreTransactions"`
-	MoyenneEntree             float64 `json:"moyenneEntree"`
-	MoyenneSortie             float64 `json:"moyenneSortie"`
-	RatioEntreeSortie         float64 `json:"ratioEntreeSortie"`
-	TauxLiquidite             float64 `json:"tauxLiquidite"`
-	EvolutionJournaliere      float64 `json:"evolutionJournaliere"`
-	EvolutionPercentage       float64 `json:"evolutionPercentage"`
-	Tendance                  string  `json:"tendance"`
-	JourLePlusActif           string  `json:"jourLePlusActif"`
-	HeureLaPlusActive         string  `json:"heureLaPlusActive"`
+	// Statistiques principales
+	SoldeCaisse         float64 `json:"soldeCaisse"`
+	TotalEntrees        float64 `json:"totalEntrees"`
+	TotalSorties        float64 `json:"totalSorties"`
+	NombreTransactions  int     `json:"nombreTransactions"`
+	MontantDebut        float64 `json:"montantDebut"` // Montant d'ouverture / dépôt initial
+
+	// Moyennes et ratios
+	MoyenneEntree      float64 `json:"moyenneEntree"`
+	MoyenneSortie      float64 `json:"moyenneSortie"`
+	RatioEntreeSortie  float64 `json:"ratioEntreeSortie"`
+	TauxLiquidite      float64 `json:"tauxLiquidite"`
+
+	// Évolution
+	EvolutionJournaliere float64 `json:"evolutionJournaliere"`
+	EvolutionPercentage  float64 `json:"evolutionPercentage"`
+	Tendance             string  `json:"tendance"` // 'hausse' | 'baisse' | 'stable'
+
+	// Analyse temporelle
+	JourLePlusActif         string  `json:"jourLePlusActif"`
+	HeureLaPlusActive       string  `json:"heureLaPlusActive"`
 	NombreTransactionsParJour float64 `json:"nombreTransactionsParJour"`
 }
 
-// FluxTresorerieData représente les données de flux de trésorerie
+// FluxTresorerieData représente les données pour le graphique de flux de trésorerie
 type FluxTresorerieData struct {
 	Dates   []string  `json:"dates"`
 	Entrees []float64 `json:"entrees"`
@@ -121,7 +138,7 @@ type FluxTresorerieData struct {
 	Soldes  []float64 `json:"soldes"`
 }
 
-// RepartitionTransactionsData représente la répartition des transactions
+// RepartitionTransactionsData représente les données pour le graphique de répartition
 type RepartitionTransactionsData struct {
 	Labels      []string  `json:"labels"`
 	Values      []float64 `json:"values"`
@@ -129,7 +146,7 @@ type RepartitionTransactionsData struct {
 	Colors      []string  `json:"colors"`
 }
 
-// TopTransaction représente les meilleures transactions
+// TopTransaction représente une transaction importante (entrée ou sortie)
 type TopTransaction struct {
 	Libelle   string    `json:"libelle"`
 	Montant   float64   `json:"montant"`
@@ -138,8 +155,34 @@ type TopTransaction struct {
 	Reference string    `json:"reference"`
 }
 
-// TopTransactions représente les tops transactions groupées
-type TopTransactions struct {
+// TopTransactionsResponse représente la réponse pour les top transactions
+type TopTransactionsResponse struct {
 	TopEntrees []TopTransaction `json:"topEntrees"`
 	TopSorties []TopTransaction `json:"topSorties"`
+}
+
+// CategorieAnalysis représente l'analyse d'une catégorie de transactions
+type CategorieAnalysis struct {
+	Categorie           string  `json:"categorie"`
+	TotalMontant        float64 `json:"totalMontant"`
+	NombreTransactions  int     `json:"nombreTransactions"`
+	Pourcentage         float64 `json:"pourcentage"`
+	Moyenne             float64 `json:"moyenne"`
+	Tendance            string  `json:"tendance"` // 'croissante' | 'décroissante' | 'stable'
+}
+
+// PrevisionTresorerie représente une prévision de trésorerie
+type PrevisionTresorerie struct {
+	Date            string  `json:"date"`
+	PrevisionEntree float64 `json:"previsionEntree"`
+	PrevisionSortie float64 `json:"previsionSortie"`
+	PrevisionSolde  float64 `json:"previsionSolde"`
+	Confiance       float64 `json:"confiance"` // Niveau de confiance de la prévision (0-100)
+}
+
+// EvolutionData structure interne pour calculer l'évolution
+type EvolutionData struct {
+	Montant    float64
+	Percentage float64
+	Tendance   string
 }
