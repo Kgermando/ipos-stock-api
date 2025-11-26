@@ -95,29 +95,26 @@ type LivreurPerformance struct {
 	TauxReussite    float64 `json:"tauxReussite"`
 }
 
- 
 // TopTransactions représente les tops transactions groupées
 type TopTransactions struct {
 	TopEntrees []TopTransaction `json:"topEntrees"`
 	TopSorties []TopTransaction `json:"topSorties"`
 }
 
-
-
 // CaisseStatistics représente les statistiques principales de la caisse
 type CaisseStatistics struct {
 	// Statistiques principales
-	SoldeCaisse         float64 `json:"soldeCaisse"`
-	TotalEntrees        float64 `json:"totalEntrees"`
-	TotalSorties        float64 `json:"totalSorties"`
-	NombreTransactions  int     `json:"nombreTransactions"`
-	MontantDebut        float64 `json:"montantDebut"` // Montant d'ouverture / dépôt initial
+	SoldeCaisse        float64 `json:"soldeCaisse"`
+	TotalEntrees       float64 `json:"totalEntrees"`
+	TotalSorties       float64 `json:"totalSorties"`
+	NombreTransactions int     `json:"nombreTransactions"`
+	MontantDebut       float64 `json:"montantDebut"` // Montant d'ouverture / dépôt initial
 
 	// Moyennes et ratios
-	MoyenneEntree      float64 `json:"moyenneEntree"`
-	MoyenneSortie      float64 `json:"moyenneSortie"`
-	RatioEntreeSortie  float64 `json:"ratioEntreeSortie"`
-	TauxLiquidite      float64 `json:"tauxLiquidite"`
+	MoyenneEntree     float64 `json:"moyenneEntree"`
+	MoyenneSortie     float64 `json:"moyenneSortie"`
+	RatioEntreeSortie float64 `json:"ratioEntreeSortie"`
+	TauxLiquidite     float64 `json:"tauxLiquidite"`
 
 	// Évolution
 	EvolutionJournaliere float64 `json:"evolutionJournaliere"`
@@ -125,8 +122,8 @@ type CaisseStatistics struct {
 	Tendance             string  `json:"tendance"` // 'hausse' | 'baisse' | 'stable'
 
 	// Analyse temporelle
-	JourLePlusActif         string  `json:"jourLePlusActif"`
-	HeureLaPlusActive       string  `json:"heureLaPlusActive"`
+	JourLePlusActif           string  `json:"jourLePlusActif"`
+	HeureLaPlusActive         string  `json:"heureLaPlusActive"`
 	NombreTransactionsParJour float64 `json:"nombreTransactionsParJour"`
 }
 
@@ -153,6 +150,20 @@ type TopTransaction struct {
 	Type      string    `json:"type"`
 	Date      time.Time `json:"date"`
 	Reference string    `json:"reference"`
+	PosName   string    `json:"pos_name"`
+}
+
+// TopCaisse représente une caisse avec ses performances
+type TopCaisse struct {
+	UUID               string  `json:"uuid"`
+	Name               string  `json:"name"`
+	PosName            string  `json:"pos_name"`
+	Solde              float64 `json:"solde"`
+	TotalEntrees       float64 `json:"total_entrees"`
+	TotalSorties       float64 `json:"total_sorties"`
+	MontantDebut       float64 `json:"montant_debut"`
+	NombreTransactions int     `json:"nombre_transactions"`
+	Performance        float64 `json:"performance"`
 }
 
 // TopTransactionsResponse représente la réponse pour les top transactions
@@ -163,12 +174,12 @@ type TopTransactionsResponse struct {
 
 // CategorieAnalysis représente l'analyse d'une catégorie de transactions
 type CategorieAnalysis struct {
-	Categorie           string  `json:"categorie"`
-	TotalMontant        float64 `json:"totalMontant"`
-	NombreTransactions  int     `json:"nombreTransactions"`
-	Pourcentage         float64 `json:"pourcentage"`
-	Moyenne             float64 `json:"moyenne"`
-	Tendance            string  `json:"tendance"` // 'croissante' | 'décroissante' | 'stable'
+	Categorie          string  `json:"categorie"`
+	TotalMontant       float64 `json:"totalMontant"`
+	NombreTransactions int     `json:"nombreTransactions"`
+	Pourcentage        float64 `json:"pourcentage"`
+	Moyenne            float64 `json:"moyenne"`
+	Tendance           string  `json:"tendance"` // 'croissante' | 'décroissante' | 'stable'
 }
 
 // PrevisionTresorerie représente une prévision de trésorerie

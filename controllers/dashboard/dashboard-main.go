@@ -1476,7 +1476,7 @@ func getRepartitionTransactionsData(entrepriseUUID, posUUID string, startDate, e
 }
 
 // getTopTransactions récupère les meilleures transactions (entrées et sorties)
-func getTopTransactions(entrepriseUUID, posUUID string, startDate, endDate *time.Time, limit int) models.TopTransactions {
+func getTopTransactions(entrepriseUUID, posUUID string, startDate, endDate *time.Time, _ int) models.TopTransactions {
 	db := database.DB
 
 	// Récupérer les caisses
@@ -1489,6 +1489,10 @@ func getTopTransactions(entrepriseUUID, posUUID string, startDate, endDate *time
 			TopSorties: []models.TopTransaction{},
 		}
 	}
+
+	// Récupérer le nom du POS
+	var pos models.Pos
+	db.Where("uuid = ?", posUUID).First(&pos)
 
 	var caisseUUIDs []string
 	for _, caisse := range caisses {
@@ -1520,6 +1524,7 @@ func getTopTransactions(entrepriseUUID, posUUID string, startDate, endDate *time
 			Type:      entree.TypeTransaction,
 			Date:      entree.CreatedAt,
 			Reference: entree.Reference,
+			PosName:   pos.Name,
 		})
 	}
 
@@ -1531,6 +1536,7 @@ func getTopTransactions(entrepriseUUID, posUUID string, startDate, endDate *time
 			Type:      sortie.TypeTransaction,
 			Date:      sortie.CreatedAt,
 			Reference: sortie.Reference,
+			PosName:   pos.Name,
 		})
 	}
 
@@ -1879,6 +1885,33 @@ func GetPrevisionsTresorerie(c *fiber.Ctx) error {
 	return c.JSON(previsions)
 }
 
+// GetTopCaisses retourne le top des caisses par performance
+func GetTopCaisses(c *fiber.Ctx) error {
+	entrepriseUUID := c.Query("entreprise_uuid")
+	posUUID := c.Query("pos_uuid")
+	startDateStr := c.Query("start_date")
+	endDateStr := c.Query("end_date")
+
+	if entrepriseUUID == "" {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "Le paramètre entreprise_uuid est requis",
+		})
+	}
+
+	var startDate, endDate *time.Time
+	if startDateStr != "" && endDateStr != "" {
+		start, err1 := time.Parse("2006-01-02T15:04:05Z07:00", startDateStr)
+		end, err2 := time.Parse("2006-01-02T15:04:05Z07:00", endDateStr)
+		if err1 == nil && err2 == nil {
+			startDate = &start
+			endDate = &end
+		}
+	}
+
+	topCaisses := getTopCaisses(entrepriseUUID, posUUID, startDate, endDate)
+	return c.JSON(topCaisses)
+}
+
 // analyseCategories analyse les catégories de transactions par libellé
 func analyseCategories(entrepriseUUID, posUUID string, startDate, endDate *time.Time) []models.CategorieAnalysis {
 	db := database.DB
@@ -2021,4 +2054,105 @@ func genererPrevisions(entrepriseUUID, posUUID string, nombreJours int) []models
 	}
 
 	return previsions
+}
+
+// getTopCaisses récupère toutes les caisses triées par performance
+func getTopCaisses(entrepriseUUID, posUUID string, startDate, endDate *time.Time) []models.TopCaisse {
+	db := database.DB
+
+	// Récupérer toutes les caisses selon le filtre
+	var caisses []models.Caisse
+	if posUUID == "" {
+		db.Where("entreprise_uuid = ?", entrepriseUUID).Find(&caisses)
+	} else {
+		db.Where("entreprise_uuid = ? AND pos_uuid = ?", entrepriseUUID, posUUID).Find(&caisses)
+	}
+
+	if len(caisses) == 0 {
+		return []models.TopCaisse{}
+	}
+
+	// Créer une map pour stocker les noms des POS
+	posNames := make(map[string]string)
+
+	var topCaisses []models.TopCaisse
+
+	for _, caisse := range caisses {
+		// Récupérer le nom du POS si ce n'est pas déjà fait
+		if _, exists := posNames[caisse.PosUUID]; !exists {
+			var pos models.Pos
+			db.Where("uuid = ?", caisse.PosUUID).First(&pos)
+			posNames[caisse.PosUUID] = pos.Name
+		}
+
+		// Si des dates sont fournies, calculer depuis CaisseItem
+		var solde float64
+		var totalEntrees, totalSorties, montantDebut float64
+		var nombreTransactions int64
+
+		// Toujours calculer depuis les items de caisse pour avoir des données précises
+		var results struct {
+			TotalEntrees       float64
+			TotalSorties       float64
+			MontantDebut       float64
+			NombreTransactions int64
+		}
+
+		query := db.Model(&models.CaisseItem{}).Where("caisse_uuid = ?", caisse.UUID)
+
+		if startDate != nil && endDate != nil {
+			query = query.Where("created_at BETWEEN ? AND ?", startDate, endDate)
+		}
+
+		query.Select(`
+			COALESCE(SUM(CASE WHEN type_transaction = 'Entree' THEN montant ELSE 0 END), 0) as total_entrees,
+			COALESCE(SUM(CASE WHEN type_transaction = 'Sortie' THEN montant ELSE 0 END), 0) as total_sorties,
+			COALESCE(SUM(CASE WHEN type_transaction = 'MontantDebut' THEN montant ELSE 0 END), 0) as montant_debut,
+			COUNT(*) as nombre_transactions
+		`).Scan(&results)
+
+		totalEntrees = results.TotalEntrees
+		totalSorties = results.TotalSorties
+		montantDebut = results.MontantDebut
+		nombreTransactions = results.NombreTransactions
+		solde = totalEntrees + montantDebut - totalSorties
+
+		// Calculer la performance en pourcentage (0-100%)
+		// Performance = (Solde / (Total Entrées + Montant Début)) * 100
+		// Cela représente le pourcentage du solde par rapport aux ressources totales disponibles
+		var performance float64
+		totalRessources := totalEntrees + montantDebut
+		if totalRessources > 0 {
+			performance = (solde / totalRessources) * 100
+			// S'assurer que la performance est entre 0 et 100%
+			if performance < 0 {
+				performance = 0
+			} else if performance > 100 {
+				performance = 100
+			}
+		}
+
+		topCaisses = append(topCaisses, models.TopCaisse{
+			UUID:               caisse.UUID,
+			Name:               caisse.Name,
+			PosName:            posNames[caisse.PosUUID],
+			Solde:              solde,
+			TotalEntrees:       totalEntrees,
+			TotalSorties:       totalSorties,
+			MontantDebut:       montantDebut,
+			NombreTransactions: int(nombreTransactions),
+			Performance:        math.Round(performance*100) / 100,
+		})
+	}
+
+	// Trier par performance décroissante
+	for i := 0; i < len(topCaisses)-1; i++ {
+		for j := i + 1; j < len(topCaisses); j++ {
+			if topCaisses[j].Performance > topCaisses[i].Performance {
+				topCaisses[i], topCaisses[j] = topCaisses[j], topCaisses[i]
+			}
+		}
+	}
+
+	return topCaisses
 }
