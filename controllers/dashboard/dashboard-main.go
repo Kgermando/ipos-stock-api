@@ -1906,9 +1906,9 @@ func GetHistoriqueTresorerie(c *fiber.Ctx) error {
 			})
 		}
 	} else {
-		// Par défaut, les 30 derniers jours
-		endDate = time.Now()
-		startDate = endDate.AddDate(0, 0, -30)
+		return c.Status(400).JSON(fiber.Map{
+			"error": "Les dates de début et de fin sont requises",
+		})
 	}
 
 	historique := genererHistoriqueTresorerie(entrepriseUUID, posUUID, startDate, endDate)
@@ -1970,9 +1970,9 @@ func genererHistoriqueTresorerie(entrepriseUUID, posUUID string, startDate, endD
 	var soldeInitial float64
 	db.Table("caisse_items ci").
 		Select(`
-			COALEST(SUM(CASE WHEN ci.type_transaction = 'Entree' THEN ci.montant ELSE 0 END), 0) + 
-			COALEST(SUM(CASE WHEN ci.type_transaction = 'MontantDebut' THEN ci.montant ELSE 0 END), 0) -
-			COALEST(SUM(CASE WHEN ci.type_transaction = 'Sortie' THEN ci.montant ELSE 0 END), 0)
+			COALESCE(SUM(CASE WHEN ci.type_transaction = 'Entree' THEN ci.montant ELSE 0 END), 0) + 
+			COALESCE(SUM(CASE WHEN ci.type_transaction = 'MontantDebut' THEN ci.montant ELSE 0 END), 0) -
+			COALESCE(SUM(CASE WHEN ci.type_transaction = 'Sortie' THEN ci.montant ELSE 0 END), 0)
 		`).
 		Where("ci.caisse_uuid IN ? AND ci.created_at < ?", caisseUUIDs, startDate).
 		Scan(&soldeInitial)
@@ -1994,8 +1994,8 @@ func genererHistoriqueTresorerie(entrepriseUUID, posUUID string, startDate, endD
 
 		db.Table("caisse_items ci").
 			Select(`
-				COALEST(SUM(CASE WHEN ci.type_transaction = 'Entree' THEN ci.montant ELSE 0 END), 0) as total_entree,
-				COALEST(SUM(CASE WHEN ci.type_transaction = 'Sortie' THEN ci.montant ELSE 0 END), 0) as total_sortie
+				COALESCE(SUM(CASE WHEN ci.type_transaction = 'Entree' THEN ci.montant ELSE 0 END), 0) as total_entree,
+				COALESCE(SUM(CASE WHEN ci.type_transaction = 'Sortie' THEN ci.montant ELSE 0 END), 0) as total_sortie
 			`).
 			Where("ci.caisse_uuid IN ? AND ci.created_at BETWEEN ? AND ?", caisseUUIDs, startDay, endDay).
 			Scan(&result)
