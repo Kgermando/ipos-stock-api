@@ -71,8 +71,7 @@ func Setup(app *fiber.App) {
 	main.Get("/flux-tresorerie", dashboard.GetFluxTresorerieData)
 	main.Get("/repartition-transactions", dashboard.GetRepartitionTransactionsData)
 	main.Get("/top-transactions", dashboard.GetTopTransactions)
-	main.Get("/analyse-categories", dashboard.GetAnalyseCategories)
-	main.Get("/previsions-tresorerie", dashboard.GetPrevisionsTresorerie)
+	main.Get("/historique-tresorerie", dashboard.GetHistoriqueTresorerie)
 	main.Get("/top-caisses", dashboard.GetTopCaisses)
 
 	// ============================================================

@@ -37,14 +37,16 @@ type ProductChartData struct {
 
 // StockAlert représente une alerte de stock
 type StockAlert struct {
-	UUID       string  `json:"uuid"`
-	Name       string  `json:"name"`
-	Reference  string  `json:"reference"`
-	UniteVente string  `json:"unite_vente"`
-	Stock      float64 `json:"stock"`
-	AlertType  string  `json:"alertType"` // "rupture" ou "avertissement"
-	Image      string  `json:"image"`
-	PrixVente  float64 `json:"prix_vente"`
+	UUID           string  `json:"uuid"`
+	Name           string  `json:"name"`
+	Reference      string  `json:"reference"`
+	UniteVente     string  `json:"unite_vente"`
+	Stock          float64 `json:"stock"`
+	StockEndommage float64 `json:"stock_endommage"`
+	Restitution    float64 `json:"restitution"`
+	AlertType      string  `json:"alertType"` // "rupture" ou "avertissement"
+	Image          string  `json:"image"`
+	PrixVente      float64 `json:"prix_vente"`
 }
 
 // StockRotationData représente les données de rotation de stock
@@ -189,6 +191,15 @@ type PrevisionTresorerie struct {
 	PrevisionSortie float64 `json:"previsionSortie"`
 	PrevisionSolde  float64 `json:"previsionSolde"`
 	Confiance       float64 `json:"confiance"` // Niveau de confiance de la prévision (0-100)
+}
+
+// HistoriqueTresorerie représente l'historique réel de trésorerie
+type HistoriqueTresorerie struct {
+	Date      string  `json:"date"`
+	Entree    float64 `json:"entree"`
+	Sortie    float64 `json:"sortie"`
+	Solde     float64 `json:"solde"`
+	Variation float64 `json:"variation"` // Variation du jour (Entree - Sortie)
 }
 
 // EvolutionData structure interne pour calculer l'évolution
