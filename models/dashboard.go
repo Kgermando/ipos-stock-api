@@ -208,3 +208,19 @@ type EvolutionData struct {
 	Percentage float64
 	Tendance   string
 }
+
+// ExpirationAlert représente une alerte d'expiration de stock
+type ExpirationAlert struct {
+	UUID            string    `json:"uuid"`
+	ProductUUID     string    `json:"product_uuid"`
+	Name            string    `json:"name"`
+	Reference       string    `json:"reference"`
+	UniteVente      string    `json:"unite_vente"`
+	Quantity        float64   `json:"quantity"`
+	DateExpiration  time.Time `json:"date_expiration"`
+	PrixAchat       float64   `json:"prix_achat"`
+	FournisseurName string    `json:"fournisseur_name,omitempty"`
+	AlertType       string    `json:"alertType"` // "expire" ou "bientot_expire"
+	Image           string    `json:"image,omitempty"`
+	DaysRemaining   int       `json:"daysRemaining"`
+}

@@ -1942,6 +1942,21 @@ func GetTopCaisses(c *fiber.Ctx) error {
 	return c.JSON(topCaisses)
 }
 
+// GetExpirationAlerts retourne les alertes d'expiration (stocks expirés ou bientôt expirés)
+func GetExpirationAlerts(c *fiber.Ctx) error {
+	entrepriseUUID := c.Query("entreprise_uuid")
+	posUUID := c.Query("pos_uuid")
+
+	if entrepriseUUID == "" || posUUID == "" {
+		return c.Status(400).JSON(fiber.Map{
+			"error": "Les paramètres entreprise_uuid et pos_uuid sont requis",
+		})
+	}
+
+	alerts := getExpirationAlerts(entrepriseUUID, posUUID)
+	return c.JSON(alerts)
+}
+
 // genererHistoriqueTresorerie génère l'historique de trésorerie pour une période donnée
 func genererHistoriqueTresorerie(entrepriseUUID, posUUID string, startDate, endDate time.Time) []models.HistoriqueTresorerie {
 	db := database.DB
@@ -2119,4 +2134,134 @@ func getTopCaisses(entrepriseUUID, posUUID string, startDate, endDate *time.Time
 	}
 
 	return topCaisses
+}
+
+// getExpirationAlerts récupère les alertes d'expiration (stocks expirés ou bientôt expirés)
+func getExpirationAlerts(entrepriseUUID, posUUID string) []models.ExpirationAlert {
+	db := database.DB
+
+	// Récupérer tous les stocks de l'entreprise avec le pos_uuid
+	var allStocks []models.Stock
+	db.Where("entreprise_uuid = ? AND pos_uuid = ?", entrepriseUUID, posUUID).
+		Find(&allStocks)
+
+	if len(allStocks) == 0 {
+		return []models.ExpirationAlert{}
+	}
+
+	// Date actuelle à minuit
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+
+	// Date limite pour les produits bientôt expirés (7 jours)
+	soonExpiredDate := today.AddDate(0, 0, 7)
+
+	// Map pour grouper les stocks par produit
+	productStocksMap := make(map[string][]models.Stock)
+
+	for _, stock := range allStocks {
+		// Vérifier si la date d'expiration existe
+		if stock.DateExpiration.IsZero() {
+			continue
+		}
+
+		expirationDate := time.Date(
+			stock.DateExpiration.Year(),
+			stock.DateExpiration.Month(),
+			stock.DateExpiration.Day(),
+			0, 0, 0, 0,
+			stock.DateExpiration.Location(),
+		)
+
+		// Vérifier si expiré ou bientôt expiré (dans les 7 prochains jours)
+		if expirationDate.Before(soonExpiredDate) || expirationDate.Equal(soonExpiredDate) {
+			if _, exists := productStocksMap[stock.ProductUUID]; !exists {
+				productStocksMap[stock.ProductUUID] = []models.Stock{}
+			}
+			productStocksMap[stock.ProductUUID] = append(productStocksMap[stock.ProductUUID], stock)
+		}
+	}
+
+	var expirationAlerts []models.ExpirationAlert
+
+	// Créer les alertes pour chaque produit
+	for productUUID, stocks := range productStocksMap {
+		// Récupérer les informations du produit
+		var product models.Product
+		if err := db.Where("uuid = ?", productUUID).First(&product).Error; err != nil {
+			continue
+		}
+
+		// Trier les stocks par date d'expiration (les plus proches en premier)
+		for i := 0; i < len(stocks)-1; i++ {
+			for j := i + 1; j < len(stocks); j++ {
+				if stocks[j].DateExpiration.Before(stocks[i].DateExpiration) {
+					stocks[i], stocks[j] = stocks[j], stocks[i]
+				}
+			}
+		}
+
+		// Prendre le stock avec la date d'expiration la plus proche
+		closestStock := stocks[0]
+		expirationDate := time.Date(
+			closestStock.DateExpiration.Year(),
+			closestStock.DateExpiration.Month(),
+			closestStock.DateExpiration.Day(),
+			0, 0, 0, 0,
+			closestStock.DateExpiration.Location(),
+		)
+
+		// Calculer le nombre de jours restants
+		diffTime := expirationDate.Sub(today)
+		daysRemaining := int(math.Ceil(diffTime.Hours() / 24))
+
+		// Déterminer le type d'alerte
+		var alertType string
+		if daysRemaining <= 0 {
+			alertType = "expire"
+		} else {
+			alertType = "bientot_expire"
+		}
+
+		// Récupérer le nom du fournisseur si disponible
+		var fournisseurName string
+		if closestStock.FournisseurUUID != "" {
+			var fournisseur models.Fournisseur
+			if err := db.Where("uuid = ?", closestStock.FournisseurUUID).First(&fournisseur).Error; err == nil {
+				fournisseurName = fournisseur.EntrepriseName
+			}
+		}
+
+		// Calculer la quantité totale pour ce produit ayant cette problématique
+		var totalQuantity float64
+		for _, s := range stocks {
+			totalQuantity += s.Quantity
+		}
+
+		expirationAlerts = append(expirationAlerts, models.ExpirationAlert{
+			UUID:            closestStock.UUID,
+			ProductUUID:     productUUID,
+			Name:            product.Name,
+			Reference:       product.Reference,
+			UniteVente:      product.UniteVente,
+			Quantity:        math.Round(totalQuantity*100) / 100,
+			DateExpiration:  closestStock.DateExpiration,
+			PrixAchat:       closestStock.PrixAchat,
+			FournisseurName: fournisseurName,
+			AlertType:       alertType,
+			Image:           product.Image,
+			DaysRemaining:   daysRemaining,
+		})
+	}
+
+	// Trier par jours restants (les expirés en premier, puis par ordre croissant)
+	for i := 0; i < len(expirationAlerts)-1; i++ {
+		for j := i + 1; j < len(expirationAlerts); j++ {
+			if expirationAlerts[j].DaysRemaining < expirationAlerts[i].DaysRemaining {
+				expirationAlerts[i], expirationAlerts[j] = expirationAlerts[j], expirationAlerts[i]
+			}
+		}
+	}
+
+	return expirationAlerts
 }

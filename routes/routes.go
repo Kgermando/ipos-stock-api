@@ -62,6 +62,7 @@ func Setup(app *fiber.App) {
 	main.Get("/plat-chart", dashboard.GetPlatChartData)
 	main.Get("/product-chart", dashboard.GetProductChartData)
 	main.Get("/stock-alerts", dashboard.GetStockAlerts)
+	main.Get("/expiration-alerts", dashboard.GetExpirationAlerts)
 	main.Get("/stock-rotation", dashboard.GetStockRotationData)
 	main.Get("/plat-statistics", dashboard.GetPlatStatistics)
 	main.Get("/livraison-statistics", dashboard.GetLivraisonStatistics)
